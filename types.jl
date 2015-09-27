@@ -99,10 +99,14 @@ function Base.show{T<:AbstractFloat}(io::IO, gmm::GMM{T})
       for j in 1:k
          println(io, "  Component $(j):")
          println(io, "    weight:     $(gmm.weights[j])")
-         println(io, "    mean:       $(gmm.means[j])")
+         #println(io, "    mean:       $(gmm.means[j])")
+         println(io, "    mean:")
+         GMM_print_vector(io, 6, gmm.means[j])
 
          if gmm.cov_type == :diag
-            println(io, "    cov (diag): $(gmm.covs[j].diag)")
+            #println(io, "    cov (diag): $(gmm.covs[j].diag)")
+            println(io, "    cov (diag):")
+            GMM_print_vector(io, 6, gmm.covs[j].diag)
          
          elseif gmm.cov_type == :full
             error("Not implemented")
@@ -114,3 +118,10 @@ function Base.show{T<:AbstractFloat}(io::IO, gmm::GMM{T})
    end
 end
 
+
+function GMM_print_vector(io, indent_level, x)
+   for val in x
+      #println(io, join([repeat(" ",indent_level), "$(val)"]))
+      println(io, join([repeat(" ",indent_level), @sprintf "% 3.5f" val]))
+   end
+end

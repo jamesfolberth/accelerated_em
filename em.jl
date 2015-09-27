@@ -1,12 +1,23 @@
 
 # EM algorithm and helpers
-function em!{T<:AbstractFloat}(gmm::GMM{T}, X::Array{T,2}; n_iter::Int=10)
+function em!{T<:AbstractFloat}(
+      gmm::GMM{T},
+      X::Array{T,2};
+      n_iter::Int=25,
+      ll_tol::T=1e-4)
+
    n_ex, n_dim = size(X)
    k = size(gmm.means, 1) # num components
-
+      
+   prev_ll = -T(Inf)
    for it in 1:n_iter
       ll = em_step!(gmm, X)
       println("log-likelihood = $(ll)")
+
+      if abs(prev_ll - ll) < ll_tol
+         break
+      end
+      prev_ll = ll
    end
 
    gmm.trained = true
@@ -15,7 +26,11 @@ function em!{T<:AbstractFloat}(gmm::GMM{T}, X::Array{T,2}; n_iter::Int=10)
 end
 
 
-function em_step!{T<:AbstractFloat}(gmm::GMM{T}, X::Array{T,2}; var_thresh::T=1e-3)
+function em_step!{T<:AbstractFloat}(
+      gmm::GMM{T},
+      X::Array{T,2};
+      var_thresh::T=1e-3)
+
    n_ex, n_dim = size(X)
    k = size(gmm.means, 1) # num components
 
@@ -57,8 +72,9 @@ function em_step!{T<:AbstractFloat}(gmm::GMM{T}, X::Array{T,2}; var_thresh::T=1e
       end
 
       # return log-likelihood
-      # here logpdf is just used as a work array to store resp before Baye's normalization
-      ll = sum(log(sum(logpdf, 2)), 1)/T(n_ex)
+      # here logpdf is just used as a work array to store resp before
+      # Baye's normalization
+      ll = reshape(sum(log(sum(logpdf, 2)), 1)/T(n_ex), 1)[1]
       return ll
 
    elseif gmm.cov_type == :full

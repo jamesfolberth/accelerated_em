@@ -76,6 +76,10 @@ function plot_gmm_contours{T<:AbstractFloat, B<:Real}(
       nx::Int=100,
       ny::Int=100)
 
+   if size(gmm.means[1],1) != 2
+      error("plot_gmm_contours shoulds be used only in 2 dimensions.")
+   end
+         
    x_min = bounds[1]; x_max = bounds[2]
    y_min = bounds[3]; y_max = bounds[4]
 
@@ -89,7 +93,6 @@ function plot_gmm_contours{T<:AbstractFloat, B<:Real}(
 
    scores = reshape(scores, size(xx))
 
-
    contour(xx, yy, scores, levels=collect(logspace(-6,2,20)))
 
 end
@@ -97,8 +100,7 @@ end
 function plot_gmm_contours{T<:AbstractFloat, B<:Real}(
       gmm::GMM{T},
       bounds::Array{B,2};
-      nx::Int=100,
-      ny::Int=100)
+      n_lin::Int=100)
 
    m,n = size(bounds)
    if m == 1 && n == 4
@@ -106,8 +108,10 @@ function plot_gmm_contours{T<:AbstractFloat, B<:Real}(
    elseif m == 4 && n == 1
       Tbounds = Array{T}(vec(bounds))
    else
-      error("Bad bounds array shape")
+      error("Bad bounds array shape: $(size(bounds))")
    end
 
-   plot_gmm_contours(gmm, Tbounds, nx=nx, ny=ny)
+   plot_gmm_contours(gmm, Tbounds, n_lin=n_lin)
 end
+
+

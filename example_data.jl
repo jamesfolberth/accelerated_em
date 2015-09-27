@@ -4,6 +4,8 @@ Routines to generate some simple example data.
 
 module example_data
 
+import Distributions
+
 """
 Draw N samples from a fixed 2d mixture
 
@@ -54,6 +56,93 @@ function dist_2d_1(N::Int)
 end
 
 
+"""
+Sample N points from a random mixture in n dimensions with k components.
+"""
+function dist_nd_1(n::Int, K::Int, N::Int;
+      T=Float64, cov_type=:wishart, print=false)
+   
+   # mixture weights, sum to one via softmax
+   mix = Array{T}(randn((K,)))
+   mix = exp(mix)
+   mix /= sum(mix)
 
+   # means
+   mean = Array{T}(10*randn((n, K)))
+
+   # covariances
+   covs = Array{Array{T,2},1}(K)
+
+   if cov_type == :simple
+      # fill with A \gets A + A^T + nI
+      for k in 1:K
+         A = Array{T}(rand(n,n))
+         A += A.'
+         A += T(n)*Array{T}(eye(n))
+         covs[k] = A
+      end
+
+   elseif cov_type == :wishart
+      # or fill with samples from Wishart_n(nI, n)
+      S = T(n)*Array{T}(eye(n))
+      W_n = Distributions.Wishart(T(n), S)
+      for k in 1:K
+         covs[k] = rand(W_n)
+      end
+   else
+      error("unknown covariance type $(cov_type).")
+   end
+
+   # precompute spectral decomposition
+   # precompute linear part of affine transformation mapping N(0,1) 
+   # to N(mu, Sigma): x <- sqrt(D)*U*x+mu
+   Q = Array{Any}(K)
+   for ind in 1:K
+      cov = covs[ind]
+      eig = eigfact(cov)
+      Q[ind] = eig[:vectors]*diagm(sqrt(eig[:values]))
+   end
+
+   X = randn((n,N))
+   y = Array{Int}(N)
+   
+   mix_cumsum = cumsum(mix)
+   for ind in 1:N
+      # select a cluster from which to sample
+      u = rand()
+      k = searchsortedfirst(mix_cumsum, u)
+      
+      # sample from that cluster
+      X[:,ind]  = Q[k]*X[:,ind] + mean[:,k]
+      y[ind] = k
+
+   end
+
+   if print
+      println("Example data in $(n) dimensions with $(K) components using cov_type=$(cov_type).")
+      for k in 1:K
+         println("  Component $(k):")
+         println("    weight:     $(mix[k])")
+         println("    mean:")
+         pretty_print_vector(6, mean[:,k])
+
+         #if gmm.cov_type == :diag
+         #   println(io, "    cov (diag):")
+         #   pretty_print_vector(io, 6, gmm.covs[j])
+         #
+         #elseif gmm.cov_type == :full
+         #   error("Not implemented")
+         #end
+      end
+   end
+
+   return X.', y
+end
+
+function pretty_print_vector(indent_level, x)
+   for val in x
+      println(join([repeat(" ",indent_level), @sprintf "% 3.5f" val]))
+   end
+end
 
 end
