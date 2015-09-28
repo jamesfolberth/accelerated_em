@@ -1,3 +1,7 @@
+
+using Base.LinAlg: Cholesky
+using Clustering: kmeans
+
 ## Define GMM types
 abstract CovMat{T<:AbstractFloat}
 
@@ -6,12 +10,14 @@ type DiagCovMat{T<:AbstractFloat} <: CovMat{T}
 end
 
 type FullCovMat{T<:AbstractFloat} <: CovMat{T}
-   cov::Array{T,2} # full matrix!
-   #R::CholFact    #TODO probably want to store the Cholesky decomp or something
+   cov::Array{T,2} # full covariance matrix
+   chol::Cholesky{T,Array{T,2}} # Cholesky factorization type of cov
 end
-# TODO FullCovMat constructor
 
-#typealias CovMat{T} Union{DiagCovMat{T}, FullCovMat{T}}
+function FullCovMat{T<:AbstractFloat}(cov::Array{T,2})
+   return FullCovMat(cov, cholfact(cov))
+end
+
 
 type GMM{T<:AbstractFloat}
    weights::Array{T,1}          # 1d array of component weights
@@ -20,17 +26,6 @@ type GMM{T<:AbstractFloat}
    covs::Array{CovMat{T},1}     # 1d array of covariance matrices (of type CovMat)
    init::Bool                   # is the GMM initialized and ready to be fit?
    trained::Bool                # is the GMM fit to data?
-
-   #function GMM(
-   #      weights::Array{T,1},
-   #      means::Array{Array{T,1},1},
-   #      cov_type::Symbol,
-   #      covs::Array{CovMat{T},1},
-   #      initialized::Bool,
-   #      trained::Bool)
-   #   
-   #   return new(weights, means, cov_type, covs, initialized, trained)
-   #end
 end
 
 
@@ -51,7 +46,7 @@ function GMM{T<:AbstractFloat}(
       fill!(means, zeros(T, n_dim))
    
    elseif mean_init_method == :kmeans
-      kmr = Clustering.kmeans(X.', k; init=:kmpp)
+      kmr = kmeans(X.', k; init=:kmpp)
       for ind in 1:k
          means[ind] = kmr.centers[:,ind]
       end
@@ -68,12 +63,13 @@ function GMM{T<:AbstractFloat}(
    # initialize covariance matrices to identity
    covs = Array{CovMat{T},1}(k)
    if cov_type == :diag
-      cm = DiagCovMat(ones(T, n_dim))
+      #cm = DiagCovMat(ones(T, n_dim))
       for ind in 1:k
          covs[ind] = DiagCovMat(ones(T, n_dim))
       end
 
    elseif cov_type == :full
+      #cm = FullCovMat(eye(n_dim))
       for ind in 1:k
          covs[ind] = FullCovMat(eye(n_dim))
       end
@@ -88,6 +84,22 @@ end
 
 ## make GMMs print a bit prettier ##
 function Base.show{T<:AbstractFloat}(io::IO, gmm::GMM{T})
+   function GMM_print_vector(io, indent_level, x)
+      for val in x
+         println(io, join([repeat(" ",indent_level), @sprintf "% 3.5f" val]))
+      end
+   end
+   
+   function GMM_print_matrix(io, indent_level, cov)
+      for i in 1:size(cov,1)
+         print(io, repeat(" ", indent_level))
+         for val in cov[i,:]
+            print(io, @sprintf "% 3.5f" val)
+         end
+         println(io,"")
+      end
+   end
+
    if gmm.init
       n_dim = size(gmm.means[1],1)
       k = size(gmm.weights,1)
@@ -99,17 +111,15 @@ function Base.show{T<:AbstractFloat}(io::IO, gmm::GMM{T})
       for j in 1:k
          println(io, "  Component $(j):")
          println(io, "    weight:     $(gmm.weights[j])")
-         #println(io, "    mean:       $(gmm.means[j])")
          println(io, "    mean:")
          GMM_print_vector(io, 6, gmm.means[j])
 
          if gmm.cov_type == :diag
-            #println(io, "    cov (diag): $(gmm.covs[j].diag)")
             println(io, "    cov (diag):")
             GMM_print_vector(io, 6, gmm.covs[j].diag)
-         
          elseif gmm.cov_type == :full
-            error("Not implemented")
+            println(io, "    cov (full):")
+            GMM_print_matrix(io, 6, gmm.covs[j].cov)
          end
       end
 
@@ -118,10 +128,3 @@ function Base.show{T<:AbstractFloat}(io::IO, gmm::GMM{T})
    end
 end
 
-
-function GMM_print_vector(io, indent_level, x)
-   for val in x
-      #println(io, join([repeat(" ",indent_level), "$(val)"]))
-      println(io, join([repeat(" ",indent_level), @sprintf "% 3.5f" val]))
-   end
-end

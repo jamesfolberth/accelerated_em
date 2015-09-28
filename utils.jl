@@ -37,11 +37,29 @@ function score_samples{T<:AbstractFloat}(gmm::GMM{T}, X::Array{T,2})
 
       return sum(resp,2), resp # sum over components
 
+   elseif gmm.cov_type == :full
+      # This is basically the E-step of EM
+      cov_logdet = map(cm->logdet(cm.chol), gmm.covs) # logdet(Sigma)
+
+      wrk = Array{T}(n_dim, n_ex) # used for storing (X-mean)
+      logpdf = Array{T}(n_ex, k)  # log p(y_i | mean_k, Sigma_k)
+      resp = Array{T}(n_ex, k)    # responsibility of component j for example i
+      for j in 1:k
+         broadcast!(-,wrk,X.',gmm.means[j])     # (x-mean)
+         wrk = gmm.covs[j].chol[:L] \ wrk       # L^{-1}*(x-mean)
+         wrk .*= wrk                            # (x-mean)^T*prec*(x-mean)
+         logpdf[:,j] = -T(0.5)*sum(wrk, 1) - T(0.5)*cov_logdet[j] - T(n_dim*0.5)*log(2*pi)
+         resp[:,j] = gmm.weights[j]*exp(logpdf[:,j])
+      end
+
+      return sum(resp,2), resp # sum over components
+
    else
       error("Unsupported covariance type $(gmm.cov_type)")
    end
 
 end
+
 
 ## Plotting ##
 function plot_data(X, y)
