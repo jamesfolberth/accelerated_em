@@ -6,9 +6,9 @@ There are other GMM modules in Julia:
    https://github.com/davidavdav/GaussianMixtures.jl
    https://github.com/lindahua/MixtureModels.jl
 """
-#TODO visualize GMM somehow
+#TODO visualize GMM somehow or some other metric for fit
 
-module gmm_em
+module gmm
 
 #XXX
 #srand(2718218)
@@ -45,24 +45,24 @@ end
 
 function run_nd()
 
-   n = 2
+   n = 5
    k = 4
    N = 5000
    X, y = example_data.dist_nd_1(n, k, N, T=Float64, print=true)
    
-   clf()
-   plot_data([X[:,1] X[:,2]], y)
+   #clf()
+   #plot_data([X[:,1] X[:,2]], y)
    
-   #gmm = GMM(X; k=k, cov_type=:diag, mean_init_method=:kmeans)
-   gmm = GMM(X; k=k, cov_type=:full, mean_init_method=:kmeans)
+   gmm = GMM(X; k=k, cov_type=:diag, mean_init_method=:kmeans)
+   #gmm = GMM(X; k=k, cov_type=:full, mean_init_method=:kmeans)
 
    em!(gmm, X, print=true)
 
    println(gmm)
    
-   plot_gmm_contours(gmm,
-      [1.1*minimum(X[:,1]), 1.1*maximum(X[:,1]),
-       1.1*minimum(X[:,2]), 1.1*maximum(X[:,2])])
+   #plot_gmm_contours(gmm,
+   #   [1.1*minimum(X[:,1]), 1.1*maximum(X[:,1]),
+   #    1.1*minimum(X[:,2]), 1.1*maximum(X[:,2])])
 
 end
 

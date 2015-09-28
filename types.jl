@@ -86,7 +86,7 @@ end
 function Base.show{T<:AbstractFloat}(io::IO, gmm::GMM{T})
    function GMM_print_vector(io, indent_level, x)
       for val in x
-         println(io, join([repeat(" ",indent_level), @sprintf "% 3.5f" val]))
+         println(io, join([repeat(" ",indent_level), @sprintf "% 7.3f" val]))
       end
    end
    
@@ -94,7 +94,7 @@ function Base.show{T<:AbstractFloat}(io::IO, gmm::GMM{T})
       for i in 1:size(cov,1)
          print(io, repeat(" ", indent_level))
          for val in cov[i,:]
-            print(io, @sprintf "% 3.5f" val)
+            print(io, @sprintf "% 7.3f  " val)
          end
          println(io,"")
       end

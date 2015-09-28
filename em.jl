@@ -39,17 +39,20 @@ function em!{T<:AbstractFloat}(
 end
 
 
+#TODO: I'd like to cleanly break this function into specialized versions
+#      for diag and full matrices.  GaussianMixtures.jl has two type
+#      parameters to do this.  Is this the Julian way to go?
 function em_step!{T<:AbstractFloat}(
       gmm::GMM{T},
       X::Array{T,2};
       var_thresh::T=1e-3,
-      chol_thresh::T=1e-3)
+      chol_thresh::T=1e-1)
 
    n_ex, n_dim = size(X)
    k = size(gmm.means, 1) # num components
 
    if gmm.cov_type == :diag
-      # E step
+      ## E step ##
       # compute responsibilities
       prec = map(cm->T(1)./cm.diag, gmm.covs)
       cov_det = map(cm->prod(cm.diag), gmm.covs) # det(Sigma)
@@ -69,7 +72,11 @@ function em_step!{T<:AbstractFloat}(
       # Baye's rule to normalize responsibilities
       broadcast!(/, resp, resp, sum(resp, 2))
 
-      # M step
+      # sometimes zero-sum responsibilities are introduced
+      resp[find(isnan(resp))] = T(0.0) # set NaNs to zero
+
+
+      ## M step ##
       rk = sum(resp, 1)       # \sum_{i=1}^N r_{ik}
       rik_X = resp.'*X        # used for \sum_{i=1}^N r_{ik} x_i
       rik_XXT = resp.'*(X.*X) # used for \sum_{i=1}^N r_{ik} x_i x_i^T
@@ -82,6 +89,7 @@ function em_step!{T<:AbstractFloat}(
          # threshold the variances
          for ind in find(gmm.covs[j].diag .< var_thresh)
             gmm.covs[j].diag[ind] = var_thresh
+            warn("Covariances have gone funky, attempting to force PD!")
          end
       end
 
@@ -92,7 +100,7 @@ function em_step!{T<:AbstractFloat}(
       return ll
 
    elseif gmm.cov_type == :full
-      # E step
+      ## E step ##
       # compute responsibilities
       cov_logdet = map(cm->logdet(cm.chol), gmm.covs) # logdet(Sigma)
 
@@ -112,7 +120,11 @@ function em_step!{T<:AbstractFloat}(
       # Baye's rule to normalize responsibilities
       broadcast!(/, resp, resp, sum(resp, 2))
       
-      # M step
+      # sometimes zero-sum responsibilities are introduced
+      resp[find(isnan(resp))] = T(0.0) # set NaNs to zero
+     
+
+      ## M step ##
       rk = sum(resp, 1)       # \sum_{i=1}^N r_{ik}
       rik_X = resp.'*X        # used for \sum_{i=1}^N r_{ik} x_i
       
@@ -134,13 +146,20 @@ function em_step!{T<:AbstractFloat}(
          gmm.covs[j].cov = rik_XXT[j]/rk[j]
          ger!(-T(1.0), gmm.means[j], gmm.means[j], gmm.covs[j].cov)
 
-         # threshold the covariance matrices?
-         #TODO
+         # threshold the covariance matrices
+         #TODO what's a reasonable way to do this?
          try
             gmm.covs[j].chol = cholfact(gmm.covs[j].cov)
          catch
-            println(gmm.covs[j].cov)
-            error("Covariances have gone funky!")
+            warn("Covariance $(j) has gone funky, attempting to force PD!")
+            gmm.covs[j].cov += chol_thresh*Array{T}(eye(n_dim))
+            try
+               gmm.covs[j].chol = cholfact(gmm.covs[j].cov)
+            catch
+               warn("Covariance $(j) is super funky, reverting to prior iterate's covariance.!")
+               cf = gmm.covs[j].chol
+               gmm.covs[j].cov = cf[:L]*cf[:U]
+            end
          end
       end
 

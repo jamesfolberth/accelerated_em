@@ -22,6 +22,7 @@ function dist_2d_1(N::Int)
    mean = [0 0; 1 5; -5 -5].'
 
    cov1 = [.5 0.; 0. .1]
+   #cov1 = [.05 0.; 0. .0000001]
    cov2 = [1. 1.; 1. 2.]
    cov3 = [1. 0.; 0. 1.]
    covs = Array[cov1, cov2, cov3]
@@ -123,16 +124,13 @@ function dist_nd_1(n::Int, K::Int, N::Int;
       for k in 1:K
          println("  Component $(k):")
          println("    weight:     $(mix[k])")
+
          println("    mean:")
          pretty_print_vector(6, mean[:,k])
 
-         #if gmm.cov_type == :diag
-         #   println(io, "    cov (diag):")
-         #   pretty_print_vector(io, 6, gmm.covs[j])
-         #
-         #elseif gmm.cov_type == :full
-         #   error("Not implemented")
-         #end
+         println("    cov (full):")
+         pretty_print_matrix(6, covs[k])
+
       end
    end
 
@@ -141,8 +139,20 @@ end
 
 function pretty_print_vector(indent_level, x)
    for val in x
-      println(join([repeat(" ",indent_level), @sprintf "% 3.5f" val]))
+      println(join([repeat(" ",indent_level), @sprintf "% 7.3f" val]))
    end
 end
+
+function pretty_print_matrix(indent_level, mat)
+   for i in 1:size(mat,1)
+      print(repeat(" ", indent_level))
+      for val in mat[i,:]
+         print(@sprintf "% 7.3f  " val)
+      end
+      println("")
+   end
+end
+
+
 
 end
