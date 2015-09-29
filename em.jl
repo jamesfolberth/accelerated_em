@@ -6,7 +6,7 @@ function em!{T<:AbstractFloat}(
       gmm::GMM{T},
       X::Array{T,2};
       n_iter::Int=25,
-      ll_tol::T=1e-4,
+      ll_tol::T=1e-3,
       print=false)
 
    n_ex, n_dim = size(X)
@@ -17,10 +17,18 @@ function em!{T<:AbstractFloat}(
    for it in 1:n_iter
       ll = em_step!(gmm, X)
 
+      ## testing compute_gradient
+      #println("compute_gradient:")
+      #(_, weight_grad, mean_grad, chol_grad) = compute_gradient(gmm, X)
+      #println(mean_grad[1])
+      ##println(chol_grad[1])
+
       if print
          println("log-likelihood = $(ll)")
+         #TODO print convergence rates
       end
       
+      # check log-likelihood convergence
       ll_diff = abs(prev_ll - ll)
       if ll_diff < ll_tol
          break
@@ -109,7 +117,7 @@ function em_step!{T<:AbstractFloat}(
       resp = Array{T}(n_ex, k)    # responsibility of component j for example i
       for j in 1:k
          broadcast!(-,wrk,X.',gmm.means[j])     # (x-mean)
-         wrk = gmm.covs[j].chol[:L] \ wrk       # L^{-1}*(x-mean)
+         wrk = gmm.covs[j].chol[:L] \ wrk       # R^{-T}*(x-mean)
          wrk .*= wrk                            # (x-mean)^T*prec*(x-mean)
          logpdf[:,j] = -T(0.5)*sum(wrk, 1) - T(0.5)*cov_logdet[j] - T(n_dim*0.5)*log(2*pi)
          resp[:,j] = gmm.weights[j]*exp(logpdf[:,j])
