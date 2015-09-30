@@ -75,7 +75,7 @@ function gd_step!{T<:AbstractFloat}(
          gmm.weights[j] = log(gmm.weights[j]) + step_size*weight_grad[j]
          gmm.means[j] += step_size*mean_grad[j]
    
-         # TODO how to do this
+         # TODO how to do this?
          R = gmm.covs[j].chol[:U] + step_size*chol_grad[j]
          gmm.covs[j].cov = R.'*R
          gmm.covs[j].chol = cholfact(gmm.covs[j].cov)
@@ -106,24 +106,23 @@ function compute_gradient{T<:AbstractFloat}(
       ## compute responsibilities ##
       cov_logdet = map(cm->logdet(cm.chol), gmm.covs) # logdet(Sigma)
 
-      wrk = Array{T}(n_dim, n_ex) # used for storing (X-mean)
-      wrk2 = Array{T}(n_dim, n_ex) # used for storing R^{-T}(X-mean)
-      sig_inv_xmmean = Array{Array{T,2},1}(k) # storing Sigma^{-1}(X-mean)
-      logpdf = Array{T}(n_ex, k)  # log p(y_i | mean_k, Sigma_k)
+      wrk = Array{T}(n_dim, n_ex) # used for storing R^{-T}(X-mean)
+      xmmean = Array{Array{T,2},1}(k) # storing (X-mean) for later use
+      logpdf = Array{T}(n_ex, k)  # log p(x_i | mean_k, Sigma_k)
       resp = Array{T}(n_ex, k)    # responsibility of component j for example i
       
       # some initialization
       for j in 1:k
-         sig_inv_xmmean[j] = zeros(n_dim, n_ex)
+         xmmean[j] = zeros(n_dim, n_ex)
       end
       
       # some heavy lifting
       for j in 1:k
-         broadcast!(-,wrk,X.',gmm.means[j])              # (x-mean)
-         wrk2 = gmm.covs[j].chol[:L] \ wrk               # R^{-T}*(x-mean)
-         sig_inv_xmmean[j] = gmm.covs[j].chol[:U] \ wrk2 # Sig^{-1}(X-mean)
-         wrk2 .*= wrk2                                   # (x-mean)^T*prec*(x-mean)
-         logpdf[:,j] = -T(0.5)*sum(wrk2, 1) - T(0.5)*cov_logdet[j] - T(n_dim*0.5)*log(2*pi)
+         broadcast!(-,xmmean[j],X.',gmm.means[j]) # (x-mean)
+         wrk = gmm.covs[j].chol[:L] \ xmmean[j]   # R^{-T}*(x-mean)
+         wrk .*= wrk                              # (x-mean)^T*prec*(x-mean)
+         logpdf[:,j] = -T(0.5)*sum(wrk, 1) - T(0.5)*cov_logdet[j] -
+            T(n_dim*0.5)*log(2*pi)
          resp[:,j] = gmm.weights[j]*exp(logpdf[:,j])
       end
       
@@ -139,12 +138,13 @@ function compute_gradient{T<:AbstractFloat}(
       
 
       ## compute terms of gradient ##
-      rk = sum(resp, 1)       # \sum_{i=1}^N r_{ik}
+      rk = sum(resp, 1) # \sum_{i=1}^N r_{ik}
       
       weight_grad = Array{T}(k)
       mean_grad = Array{Array{T,1},1}(k)
       chol_grad = Array{Array{T,2},1}(k) # gradient wrt Cholesky R
-      for j in 1:k
+      outer_prod = Array{T}(zeros(n_dim, n_dim))
+      for j in 1:k # some initialization
          mean_grad[j] = Array{T}(zeros(n_dim))
          chol_grad[j] = Array{T}(zeros(n_dim, n_dim))
          chol_grad[j] -= rk[j]*inv(gmm.covs[j].chol[:L])
@@ -152,10 +152,14 @@ function compute_gradient{T<:AbstractFloat}(
       @inbounds for j in 1:k
          weight_grad[j] = rk[j] - T(n_ex)*gmm.weights[j]
          for i in 1:n_ex
-            xi = sig_inv_xmmean[j][:,i]
+            xi = xmmean[j][:,i]
             mean_grad[j] += resp[i,j]*xi
-            chol_grad[j] += resp[i,j]*gmm.covs[j].chol[:U]*xi*xi.' 
+            ger!(resp[i,j], xi, xi, outer_prod) # op += r_{ij}*xi*xi^T
          end
+         mean_grad[j] = gmm.covs[j].chol \ mean_grad[j]
+         # due to symmetry of outer_prod and Sigma, we can use "left division"
+         outer_prod = (gmm.covs[j].chol \ outer_prod).' # (xi*xi')*inv(Sigma) 
+         chol_grad[j] += gmm.covs[j].chol[:L] \ outer_prod
       end
       
       return ll, weight_grad, mean_grad, chol_grad

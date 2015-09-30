@@ -71,7 +71,8 @@ function em_step!{T<:AbstractFloat}(
       for j in 1:k
          broadcast!(-,wrk,X,gmm.means[j].')     # (x-mean)
          broadcast!(.*,wrk,wrk.*wrk, prec[j].') # (x-mean)^T*prec*(x-mean)
-         logpdf[:,j] = -T(0.5)*sum(wrk, 2) - T(0.5)*log(cov_det[j]) - T(n_dim*0.5)*log(2*pi)
+         logpdf[:,j] = -T(0.5)*sum(wrk, 2) - T(0.5)*log(cov_det[j]) -
+            T(n_dim*0.5)*log(2*pi)
          resp[:,j] = gmm.weights[j]*exp(logpdf[:,j])
       end
 
@@ -119,7 +120,8 @@ function em_step!{T<:AbstractFloat}(
          broadcast!(-,wrk,X.',gmm.means[j])     # (x-mean)
          wrk = gmm.covs[j].chol[:L] \ wrk       # R^{-T}*(x-mean)
          wrk .*= wrk                            # (x-mean)^T*prec*(x-mean)
-         logpdf[:,j] = -T(0.5)*sum(wrk, 1) - T(0.5)*cov_logdet[j] - T(n_dim*0.5)*log(2*pi)
+         logpdf[:,j] = -T(0.5)*sum(wrk, 1) - T(0.5)*cov_logdet[j] -
+            T(n_dim*0.5)*log(2*pi)
          resp[:,j] = gmm.weights[j]*exp(logpdf[:,j])
       end
 

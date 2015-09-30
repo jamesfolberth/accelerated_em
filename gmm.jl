@@ -11,7 +11,7 @@ There are other GMM modules in Julia:
 module gmm
 
 #XXX
-#srand(2718218)
+srand(2718218)
 
 using PyPlot #using: brings names into current NS; import doesn't
 
@@ -59,7 +59,7 @@ function run_nd()
 
    #em!(gmm, X, print=true)
    #em!(gmm, X, print=true, ll_tol=-1.0, n_iter=100) # run forever...
-   gd!(gmm, X, print=true, n_em_iter=0)
+   gd!(gmm, X, print=true, n_em_iter=1)
    gmm.trained = true # force it, even if training fails
    
    println(gmm) 
@@ -81,7 +81,7 @@ function run_compare_nd()
    gmm2 = GMM(X; k=k, cov_type=:full, mean_init_method=:kmeans)
    
    em!(gmm1, X, print=true)
-   gd!(gmm2, X, print=true, n_em_iter=1, n_iter=1000)
+   gd!(gmm2, X, print=true, n_em_iter=10, n_iter=50)
 
    println(gmm1)
    println(gmm2)
@@ -91,7 +91,8 @@ end
 
 
 #run_2d()
-run_nd()
-#run_compare_nd()
+#run_nd()
+run_compare_nd()
+#@time run_compare_nd()
 
 end
