@@ -6,7 +6,11 @@ There are other GMM modules in Julia:
    https://github.com/davidavdav/GaussianMixtures.jl
    https://github.com/lindahua/MixtureModels.jl
 """
+
 #TODO visualize GMM somehow or some other metric for fit
+#TODO Make sure the new typing system works like it should
+#TODO How does documentation work?
+#TODO unit tests would be nice
 
 module gmm
 
@@ -31,10 +35,13 @@ function run_2d()
    clf()
    plot_data(X, y)
 
-   #gmm = GMM(X; k=3, cov_type=:diag, mean_init_method=:kmeans)
-   gmm = GMM(X; k=3, cov_type=:full, mean_init_method=:kmeans)
+   #gmm = GMM(X; K=3, cov_type=:diag, mean_init_method=:kmeans)
+   gmm = GMM(X; K=3, cov_type=:full, mean_init_method=:kmeans)
+
+   println(typeof(gmm))
 
    em!(gmm, X, print=true)
+   #gd!(gmm, X, print=true, n_em_iter=4)
 
    println(gmm)
 
@@ -54,8 +61,8 @@ function run_nd()
    clf()
    plot_data([X[:,1] X[:,2]], y)
    
-   #gmm = GMM(X; k=k, cov_type=:diag, mean_init_method=:kmeans)
-   gmm = GMM(X; k=k, cov_type=:full, mean_init_method=:kmeans)
+   #gmm = GMM(X; K=k, cov_type=:diag, mean_init_method=:kmeans)
+   gmm = GMM(X; K=k, cov_type=:full, mean_init_method=:kmeans)
 
    #em!(gmm, X, print=true)
    #em!(gmm, X, print=true, ll_tol=-1.0, n_iter=100) # run forever...
@@ -77,8 +84,8 @@ function run_compare_nd()
    N = 5000
    X, y = example_data.dist_nd_1(n, k, N, T=Float64, print=true)
    
-   gmm1 = GMM(X; k=k, cov_type=:full, mean_init_method=:kmeans)
-   gmm2 = GMM(X; k=k, cov_type=:full, mean_init_method=:kmeans)
+   gmm1 = GMM(X; K=k, cov_type=:full, mean_init_method=:kmeans)
+   gmm2 = GMM(X; K=k, cov_type=:full, mean_init_method=:kmeans)
    
    em!(gmm1, X, print=true)
    gd!(gmm2, X, print=true, n_em_iter=10, n_iter=50)

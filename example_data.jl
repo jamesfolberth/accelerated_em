@@ -6,16 +6,17 @@ module example_data
 
 import Distributions
 
+
 """
 Draw N samples from a fixed 2d mixture
 
 Args:
-   N (Int) - number of samples to draw
+   N (Integer) - number of samples to draw
 
 Return:
    X () - (2,N) array of samples
 """
-function dist_2d_1(N::Int)
+function dist_2d_1(N::Integer)
 
    K = 3
    mix = [.25; .25; .5]
@@ -60,7 +61,7 @@ end
 """
 Sample N points from a random mixture in n dimensions with k components.
 """
-function dist_nd_1(n::Int, K::Int, N::Int;
+function dist_nd_1(n::Integer, K::Integer, N::Integer;
       T=Float64, cov_type=:wishart, print=false)
    
    # mixture weights, sum to one via softmax
@@ -137,6 +138,7 @@ function dist_nd_1(n::Int, K::Int, N::Int;
    return X.', y
 end
 
+#TODO merge this with gmm.pretty_print_*
 function pretty_print_vector(indent_level, x)
    for val in x
       println(join([repeat(" ",indent_level), @sprintf "% 7.3f" val]))
@@ -152,7 +154,5 @@ function pretty_print_matrix(indent_level, mat)
       println("")
    end
 end
-
-
 
 end
