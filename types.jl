@@ -85,26 +85,6 @@ end
 
 
 ## make GMMs print a bit prettier ##
-#TODO these are more of a utils thing
-#TODO io should default to STDOUT
-function pretty_print_vector{T}(io::IO, x::AbstractArray{T}; indent_level::Integer=0)
-   for val in x
-      println(io, join([repeat(" ",indent_level), @sprintf "% 7.3f" val]))
-   end
-end
-#pretty_print_vector{T}(x::AbstractArray{T}; indent_level::Integer=0) = 
-#   pretty_print_vector(STDOUT, x, indent_level=indent_level)
-
-function pretty_print_matrix{T}(io::IO, mat::AbstractArray{T,2}; indent_level::Integer=0)
-   for i in 1:size(mat, 1)
-      print(io, repeat(" ", indent_level))
-      for val in mat[i,:]
-         print(io, @sprintf "% 7.3f  " val)
-      end
-      println(io,"")
-   end
-end
-
 function print_cov_k{T,CM<:DiagCovMat}(io::IO, gmm::GMM{T,CM}, j::Integer; indent_level::Integer=0)
    pretty_print_vector(io, gmm.covs[j].diag, indent_level=indent_level)
 end
@@ -116,9 +96,9 @@ end
 for (cm, cov_name) in ((:DiagCovMat, "diagonal"), (:FullCovMat, "full"))
    @eval begin
       function Base.show{T,CM<:$cm}(io::IO, gmm::GMM{T,CM})
-         #n_dim = size(gmm.means[1],1)
-         #k = size(gmm.weights,1)
-         println(io, "Gaussian mixture model in $(gmm.n_dim) dimensions with $(gmm.n_clust) components with $($cov_name) covariances:")
+         println(io, string("Gaussian mixture model in $(gmm.n_dim) ",
+            "dimensions with $(gmm.n_clust) components with $($cov_name) ",
+            "covariances:"))
 
          println(io, "  initialized: $(gmm.init)")
          println(io, "  trained:     $(gmm.trained)")
@@ -128,7 +108,8 @@ for (cm, cov_name) in ((:DiagCovMat, "diagonal"), (:FullCovMat, "full"))
             println(io, "  Component $(k):")
             println(io, "    weight:     $(gmm.weights[k])")
             println(io, "    mean:")
-            pretty_print_vector(io, gmm.means[k], indent_level=6)
+            pretty_print_vector(gmm.means[k], indent_level=6)
+            println(io, "    cov:")
             print_cov_k(io, gmm, k, indent_level=6)
          end
          #end

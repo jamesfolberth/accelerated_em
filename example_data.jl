@@ -5,7 +5,7 @@ Routines to generate some simple example data.
 module example_data
 
 import Distributions
-
+import gmm
 
 """
 Draw N samples from a fixed 2d mixture
@@ -127,32 +127,15 @@ function dist_nd_1(n::Integer, K::Integer, N::Integer;
          println("    weight:     $(mix[k])")
 
          println("    mean:")
-         pretty_print_vector(6, mean[:,k])
+         gmm.pretty_print_vector(mean[:,k], indent_level=6)
 
          println("    cov (full):")
-         pretty_print_matrix(6, covs[k])
+         gmm.pretty_print_matrix(covs[k], indent_level=6)
 
       end
    end
 
    return X.', y
-end
-
-#TODO merge this with gmm.pretty_print_*
-function pretty_print_vector(indent_level, x)
-   for val in x
-      println(join([repeat(" ",indent_level), @sprintf "% 7.3f" val]))
-   end
-end
-
-function pretty_print_matrix(indent_level, mat)
-   for i in 1:size(mat,1)
-      print(repeat(" ", indent_level))
-      for val in mat[i,:]
-         print(@sprintf "% 7.3f  " val)
-      end
-      println("")
-   end
 end
 
 end
