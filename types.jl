@@ -26,6 +26,8 @@ type GMM{T,CM<:CovMat}
    covs::Array{CM,1}            # 1d array of covariance matrices
    init::Bool                   # is the GMM initialized and ready to be fit?
    trained::Bool                # is the GMM fit to data?
+
+   _wk::Array{T,1}              # reparameterized weights used in some training
 end
 
 
@@ -77,9 +79,9 @@ function GMM{T}(
    end
    
    if cov_type == :diag
-      return GMM{T,DiagCovMat{T}}(n_dim, K, weights, means, covs, true, false)
+      return GMM{T,DiagCovMat{T}}(n_dim, K, weights, means, covs, true, false, Array{T}(K))
    elseif cov_type == :full
-      return GMM{T,FullCovMat{T}}(n_dim, K, weights, means, covs, true, false)
+      return GMM{T,FullCovMat{T}}(n_dim, K, weights, means, covs, true, false, Array{T}(K))
    end
 end
 
@@ -109,7 +111,7 @@ for (cm, cov_name) in ((:DiagCovMat, "diagonal"), (:FullCovMat, "full"))
             println(io, "    weight:     $(gmm.weights[k])")
             println(io, "    mean:")
             pretty_print_vector(gmm.means[k], indent_level=6)
-            println(io, "    cov:")
+            println(io, "    cov ($($cov_name)):")
             print_cov_k(io, gmm, k, indent_level=6)
          end
          #end

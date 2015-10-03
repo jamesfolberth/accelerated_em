@@ -25,7 +25,7 @@ function em!{T,CM<:CovMat}(
       ##println(chol_grad[1])
 
       if print
-         println("log-likelihood = $(ll)")
+         println("em!: log-likelihood = $(ll)")
          #TODO print convergence rates
       end
       
@@ -49,6 +49,7 @@ function em!{T,CM<:CovMat}(
 end
 
 
+## EM steppers ##
 function em_step!{T,CM<:DiagCovMat}(
       gmm::GMM{T,CM},
       X::Array{T,2};
@@ -180,6 +181,58 @@ function em_step!{T,CM<:FullCovMat}(
    # return log-likelihood
    # here logpdf is just used as a work array to store resp before
    # Baye's normalization
+   ll = reshape(sum(log(sum(logpdf, 2)), 1)/T(n_ex), 1)[1]
+   return ll
+end
+
+
+## log-likelihood ##
+function compute_ll{T,CM<:DiagCovMat}(
+      gmm::GMM{T,CM},
+      X::Array{T,2})
+
+   n_dim, n_clust, n_ex = gmm_data_sanity(gmm, X)
+   
+   # this is similar to E step
+   prec = map(cm->T(1)./cm.diag, gmm.covs)
+   cov_det = map(cm->prod(cm.diag), gmm.covs) # det(Sigma)
+
+   wrk = Array{T}(n_ex, n_dim) # used for storing (X-mean)
+   logpdf = Array{T}(n_ex, n_clust)  # log p(y_i | mean_k, Sigma_k)
+   for k in 1:n_clust
+      broadcast!(-,wrk,X,gmm.means[k].')     # (x-mean)
+      broadcast!(.*,wrk,wrk.*wrk, prec[k].') # (x-mean)^T*prec*(x-mean)
+      logpdf[:,k] = -T(0.5)*sum(wrk, 2) - T(0.5)*log(cov_det[k]) -
+         T(n_dim*0.5)*log(2*pi)
+      logpdf[:,k] = gmm.weights[k]*exp(logpdf[:,k]) # no longer logpdf
+   end
+
+   # return log-likelihood
+   ll = reshape(sum(log(sum(logpdf, 2)), 1)/T(n_ex), 1)[1]
+   return ll
+end
+
+function compute_ll{T,CM<:FullCovMat}(
+      gmm::GMM{T,CM},
+      X::Array{T,2})
+
+   n_dim, n_clust, n_ex = gmm_data_sanity(gmm, X)
+   
+   # this is similar to E step
+   cov_logdet = map(cm->logdet(cm.chol), gmm.covs) # logdet(Sigma)
+
+   wrk = Array{T}(n_dim, n_ex) # used for storing (X-mean)
+   logpdf = Array{T}(n_ex, n_clust)  # log p(y_i | mean_k, Sigma_k)
+   for k in 1:n_clust
+      broadcast!(-,wrk,X.',gmm.means[k])     # (x-mean)
+      wrk = gmm.covs[k].chol[:L] \ wrk       # R^{-T}*(x-mean)
+      wrk .*= wrk                            # (x-mean)^T*prec*(x-mean)
+      logpdf[:,k] = -T(0.5)*sum(wrk, 1) - T(0.5)*cov_logdet[k] -
+         T(n_dim*0.5)*log(2*pi)
+      logpdf[:,k] = gmm.weights[k]*exp(logpdf[:,k]) # no longer logpdf
+   end
+   
+   # return log-likelihood
    ll = reshape(sum(log(sum(logpdf, 2)), 1)/T(n_ex), 1)[1]
    return ll
 end

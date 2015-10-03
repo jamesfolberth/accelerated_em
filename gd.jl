@@ -2,7 +2,7 @@
 using Base.LinAlg.BLAS: ger!
 
 #TODO: Verify that gradients are correct with Stephen's code
-#TODO: gd_step!, compute_gradient for DiagCovMat
+#TODO: gd_step!, compute_grad for DiagCovMat
 
 """
 Gradient descent driver
@@ -21,24 +21,27 @@ function gd!{T,CM<:CovMat}(
    prev_ll = -T(Inf)
    for it in 1:n_em_iter
       prev_ll = em_step!(gmm, X)
-      println("(EM step) log-likelihood = $(prev_ll)")
+      println("em!: log-likelihood = $(prev_ll)")
    end
 
    ll_diff = T(0.0)
    for it in 1:n_iter
-      #TODO line search
-      ll = gd_step!(gmm, X, step_size=1e-4/(1+it)^(.7))
+      # naive step size
+      #ll = gd_step!(gmm, X, step_size=1e-4/(1+it)^(.7))
+      
+      # backtracking line search
+      ll, gmm = bt_ls_step(gmm, X) 
 
       if print
-         println("log-likelihood = $(ll)")
+         println("gd!: log-likelihood = $(ll)")
          #TODO print convergence rates
       end
      
       # check log-likelihood convergence
       ll_diff = abs(prev_ll - ll)
-      #if ll_diff < ll_tol
-      #   break
-      #end
+      if ll_diff < ll_tol
+         break
+      end
       prev_ll = ll
    end
    
@@ -71,13 +74,14 @@ function gd_step!{T,CM<:FullCovMat}(
       step_size::T=1e-4)
   
    n_dim, n_clust, n_ex = gmm_data_sanity(gmm, X)
-
-   ll, weight_grad, mean_grad, chol_grad = compute_gradient(gmm, X)
+   
+   gmm._wk[:] = log(gmm.weights[:])
+   ll, wk_grad, mean_grad, chol_grad = compute_grad(gmm, X)
       
    # this is actually gradient ascent
    for k in 1:n_clust
-      # this is a w_k update
-      gmm.weights[k] = log(gmm.weights[k]) + step_size*weight_grad[k]
+      gmm._wk[k] += step_size*wk_grad[k]
+
       gmm.means[k] += step_size*mean_grad[k]
    
       # TODO how to do this?
@@ -86,14 +90,77 @@ function gd_step!{T,CM<:FullCovMat}(
       gmm.covs[k].chol = cholfact(gmm.covs[k].cov)
    end
 
-   gmm.weights = exp(gmm.weights)
+   gmm.weights[:] = exp(gmm._wk[:])
    gmm.weights /= sum(gmm.weights)
 
    return ll
 end
 
 
-function compute_gradient{T,CM<:DiagCovMat}(
+## line search ##
+# for steepest descent
+function bt_ls_step{T,CM<:FullCovMat}(
+      gmm::GMM{T,CM},
+      X::Array{T,2};
+      alpha::T=1e-2,
+      rho::T=0.5,
+      c::T=1e-4)
+   
+   function step_gmm!(gmm, wk_grad, mean_grad, chol_grad, alpha)
+      n_dim, n_clust, n_ex = gmm_data_sanity(gmm, X)
+
+      gmm._wk[:] = log(gmm.weights[:])
+      for k in 1:n_clust
+         gmm._wk[k] += alpha*wk_grad[k]
+
+         gmm.means[k] += alpha*mean_grad[k]
+      
+         # TODO how to do this?
+         R = gmm.covs[k].chol[:U] + alpha*chol_grad[k]
+         gmm.covs[k].cov = R.'*R
+         gmm.covs[k].chol = cholfact(gmm.covs[k].cov)
+      end
+
+      gmm.weights[:] = exp(gmm._wk[:])
+      gmm.weights /= sum(gmm.weights)
+   end
+   
+   n_dim, n_clust, n_ex = gmm_data_sanity(gmm, X)
+   ll, wk_grad, mean_grad, chol_grad = compute_grad(gmm, X)
+   
+   alpha_k = alpha
+   _gmm = deepcopy(gmm)
+   step_gmm!(_gmm, wk_grad, mean_grad, chol_grad, alpha_k)
+   _ll = compute_ll(_gmm, X)
+
+   grad_ip = T(0)
+   for k in 1:n_clust
+      grad_ip += wk_grad[k]^2
+      grad_ip += sum(mean_grad[k].^2)
+      grad_ip += sum(chol_grad[k].^2)
+   end
+   #println("  grad_ip = $(grad_ip)")
+
+   while isnan(_ll) || _ll < ll + c*alpha_k*grad_ip
+      alpha_k *= rho 
+
+      _gmm = deepcopy(gmm)
+      step_gmm!(_gmm, wk_grad, mean_grad, chol_grad, alpha_k)
+      _ll = compute_ll(_gmm, X)
+      #println("  alpha_k = $(alpha_k), _ll = $(_ll), diff = $(_ll-ll-c*alpha_k*grad_ip)")
+      
+      if alpha_k < eps(ll)
+         return ll, gmm # sufficient decrease not found
+      end
+   end
+   
+   #gmm = deepcopy(_gmm) #TODO is there a better way?
+   return _ll, _gmm
+end
+
+
+## Gradients ##
+function compute_grad{T,CM<:DiagCovMat}(
       gmm::GMM{T,CM},
       X::Array{T,2})
    
@@ -102,7 +169,7 @@ function compute_gradient{T,CM<:DiagCovMat}(
    error("Not implemented!")
 end
 
-function compute_gradient{T,CM<:FullCovMat}(
+function compute_grad{T,CM<:FullCovMat}(
       gmm::GMM{T,CM},
       X::Array{T,2})
 
@@ -155,6 +222,7 @@ function compute_gradient{T,CM<:FullCovMat}(
       chol_grad[k] -= rk[k]*inv(gmm.covs[k].chol[:L])
    end
    @inbounds for k in 1:n_clust
+      outer_prod *= T(0)
       weight_grad[k] = rk[k] - T(n_ex)*gmm.weights[k]
       for i in 1:n_ex
          xi = xmmean[k][:,i]

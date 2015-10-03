@@ -15,7 +15,7 @@ There are other GMM modules in Julia:
 module gmm
 
 #XXX
-srand(2718218)
+#srand(2718218)
 
 using PyPlot #using: brings names into current NS; import doesn't
 
@@ -26,6 +26,7 @@ include("gd.jl")
 include("utils.jl")
 
 include("example_data.jl")
+include("grad_test.jl")
 
 
 # development things
@@ -83,17 +84,108 @@ function run_compare_nd()
    k = 4
    N = 5000
    X, y = example_data.dist_nd_1(n, k, N, T=Float64, print=true)
+ 
+   figure(1)
+   clf()
+   plot_data([X[:,1] X[:,2]], y)
+   figure(2)
+   clf()
+   plot_data([X[:,1] X[:,2]], y)
    
    gmm1 = GMM(X; K=k, cov_type=:full, mean_init_method=:kmeans)
    gmm2 = GMM(X; K=k, cov_type=:full, mean_init_method=:kmeans)
    
-   em!(gmm1, X, print=true)
-   gd!(gmm2, X, print=true, n_em_iter=10, n_iter=50)
+   # force it!
+   gmm1.trained = true
+   gmm2.trained = true
+   
+   println("EM only")
+   em!(gmm1, X, print=true, n_iter = 500)
+   
+   println("GD\n")
+   gd!(gmm2, X, print=true, n_em_iter=2, n_iter=500)
 
    println(gmm1)
    println(gmm2)
+   
+   figure(1)
+   title("EM")
+   plot_gmm_contours(gmm1,
+      [1.1*minimum(X[:,1]), 1.1*maximum(X[:,1]),
+       1.1*minimum(X[:,2]), 1.1*maximum(X[:,2])])
+
+   figure(2)
+   title("GD")
+   plot_gmm_contours(gmm2,
+      [1.1*minimum(X[:,1]), 1.1*maximum(X[:,1]),
+       1.1*minimum(X[:,2]), 1.1*maximum(X[:,2])])
 
 end
+
+#TODO make test dir?
+function run_grad_check()
+# {{{
+   n = 2
+   k = 4
+   N = 500
+   X, y = example_data.dist_nd_1(n, k, N, T=Float64, print=true)
+   
+   gmm = GMM(X; K=k, cov_type=:full, mean_init_method=:kmeans)
+   
+   for i in 1:0
+      println(em_step!(gmm, X))
+   end
+
+   ## wk ##
+   #function f(wk, gmm)
+   #   gmm._wk[:] = wk[:]
+   #   gmm.weights[:] = exp(wk)
+   #   gmm.weights /= sum(gmm.weights)
+   #   return compute_grad(gmm,X)[1]
+   #end
+
+   #function g(wk, gmm)
+   #   gmm._wk[:] = wk[:]
+   #   gmm.weights[:] = exp(wk)
+   #   gmm.weights /= sum(gmm.weights)
+   #   return compute_grad(gmm,X)[2]
+   #end
+   #grad_test.taylor_test(_x->f(_x,gmm), _x->g(_x,gmm),log(gmm.weights))
+  
+
+   ## means ##
+   #ind = 1
+   #function f(m, gmm)
+   #   gmm.means[ind][:] = m[:]
+   #   return compute_grad(gmm,X)[1]
+   #end
+
+   #function g(m, gmm)
+   #   gmm.means[ind][:] = m[:]
+   #   return compute_grad(gmm,X)[3][ind]
+   #end
+   #grad_test.taylor_test(_x->f(_x,gmm), _x->g(_x,gmm),gmm.means[ind])
+
+
+   ## covs ##
+   ind = 1
+   # full
+   function f(R, gmm)
+      gmm.covs[ind].cov = R.'*R
+      gmm.covs[ind].chol = cholfact(gmm.covs[ind].cov)
+      return compute_grad(gmm,X)[1]
+   end
+
+   function g(R, gmm)
+      gmm.covs[ind].cov = R.'*R
+      gmm.covs[ind].chol = cholfact(gmm.covs[ind].cov)
+      return compute_grad(gmm,X)[4][ind]
+   end
+   grad_test.taylor_test(_x->f(_x,gmm), _x->g(_x,gmm),full(gmm.covs[ind].chol[:U]))
+
+# }}} 
+end
+
 
 
 
@@ -101,5 +193,6 @@ end
 #run_nd()
 run_compare_nd()
 #@time run_compare_nd()
+#run_grad_check()
 
 end
