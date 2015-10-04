@@ -24,13 +24,18 @@ function gd!{T,CM<:CovMat}(
       println("em!: log-likelihood = $(prev_ll)")
    end
 
-   ll_diff = T(0.0)
+   ll_diff = T(0)
+   bt_step = T(1)
    for it in 1:n_iter
       # naive step size
       #ll = gd_step!(gmm, X, step_size=1e-4/(1+it)^(.7))
       
       # backtracking line search
-      ll, gmm = bt_ls_step(gmm, X) 
+      if it == 1
+         ll, gmm, bt_step = bt_ls_step(gmm, X)
+      else
+         ll, gmm, bt_step = bt_ls_step(gmm, X, alpha=bt_step)
+      end
 
       if print
          println("gd!: log-likelihood = $(ll)")
@@ -150,12 +155,12 @@ function bt_ls_step{T,CM<:FullCovMat}(
       #println("  alpha_k = $(alpha_k), _ll = $(_ll), diff = $(_ll-ll-c*alpha_k*grad_ip)")
       
       if alpha_k < eps(ll)
-         return ll, gmm # sufficient decrease not found
+         return ll, gmm, alpha_k # sufficient decrease not found
       end
    end
    
    #gmm = deepcopy(_gmm) #TODO is there a better way?
-   return _ll, _gmm
+   return _ll, _gmm, alpha_k
 end
 
 
