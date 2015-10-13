@@ -93,6 +93,7 @@ function score_samples{T,CM<:FullCovMat}(gmm::GMM{T,CM}, X::Array{T,2})
    return sum(resp,2), resp # sum over components
 end
 
+
 ## KMeans make assignments
 function hard_classify{T}(km::KMeans{T}, X::Array{T,2})
    
@@ -114,6 +115,26 @@ function hard_classify{T}(km::KMeans{T}, X::Array{T,2})
 
    return assignments
 end
+
+function soft_classify{T}(km::KMeans{T}, X::Array{T,2})
+   
+   km.trained || throw("km should be trained before using it for classificaiton.")
+   n_dim, n_clust, n_ex = data_sanity(km, X)
+   
+   nrms = Array{T}(n_clust)
+   assignments = Array{Int64}(n_ex)
+   
+   @inbounds for i in 1:n_ex
+      Xi = vec(X[i,:])
+      for k in 1:n_clust
+         nrms[k] = norm(Xi-km.means[k],2)
+      end
+      assignments[i] = indmin(nrms)
+   end
+   
+   return assignments
+end
+
 
 
 ## Plotting ##

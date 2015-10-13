@@ -211,18 +211,21 @@ function run_kmeans_nd()
    km = KMeans(X; K=k, mean_init_method=:kmpp)
    kmr = kmeans(X.', k, init=:kmpp, maxiter=0) # to check kmeans++; seems good
    
-   # steal means from kmeans
+   # steal means from Clustering's kmeans
    # note that they use different stopping criteria
-   #for i in 1:k
-   #   km.means[i] = vec(kmr.centers[:,i])
-   #end
+   for i in 1:k
+      km.means[i] = vec(kmr.centers[:,i])
+   end
    
    if n == 2
       plot_means(km)
    end
    
-   hard_em!(km, X)
-   y_pred = hard_classify(km, X) 
+   #hard_em!(km, X)
+   #y_pred = hard_classify(km, X) 
+ 
+   em!(km, X)
+   y_pred = soft_classify(km, X) 
    
    println(km)
 
@@ -238,7 +241,6 @@ function run_kmeans_nd()
       clf()
       title("Clustering.jl:kmeans")
       kmr = kmeans(X.', k, init=:kmpp)
-      println(kmr.iterations)
       plot_data(X, kmr.assignments)
    end
    
