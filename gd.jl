@@ -4,6 +4,8 @@ using Base.LinAlg.BLAS: ger!
 #TODO: Verify that gradients are correct with Stephen's code
 #TODO: gd_step!, compute_grad for DiagCovMat
 
+## GMM ##
+# {{{
 """
 Gradient descent driver
 """
@@ -245,5 +247,144 @@ function compute_grad{T,CM<:FullCovMat}(
    return ll, weight_grad, mean_grad, chol_grad
 end
 
+# }}}
+
+## KMeans ##
+# {{{
+"""
+Gradient descent driver
+"""
+function gd!{T}(
+      km::KMeans{T},
+      X::Array{T,2};
+      n_iter::Int=25,
+      n_em_iter::Int=2,
+      ll_tol::T=1e-3,
+      print=false)
+   
+   n_dim, n_clust, n_ex = data_sanity(km, X)
+   
+   # initially do a few EM steps
+   prev_ll = -T(Inf)
+   for it in 1:n_em_iter
+      prev_ll = em_step!(km, X)
+      println("em!: log-likelihood = $(prev_ll)")
+   end
+
+   ll_diff = T(0)
+   bt_step = T(1)
+   for it in 1:n_iter
+      # naive step size
+      ll = gd_step!(km, X, step_size=:em_step)
+      #ll = gd_step!(km, X, step_size=1e-4/(1+it)^(.7))
+      
+      # backtracking line search
+      #TODO
+      #if it == 1
+      #   ll, km, bt_step = bt_ls_step(km, X)
+      #else
+      #   ll, km, bt_step = bt_ls_step(km, X, alpha=bt_step)
+      #   # hacky way to attempt to grow step size
+      #   #ll, km, bt_step = bt_ls_step(km, X, alpha=2.0*bt_step)
+      #end
+
+      if print
+         println("gd!: log-likelihood = $(ll)")
+         #TODO print convergence rates
+      end
+     
+      # check log-likelihood convergence
+      ll_diff = abs(prev_ll - ll)
+      if ll_diff < ll_tol
+         break
+      end
+      prev_ll = ll
+   end
+   
+   if ll_diff > ll_tol
+      warn("Log-likelihood has not reached convergence criterion of $(ll_tol) in $(n_iter) iterations.  GD may not have converged!")
+
+   else
+      km.trained = true
+   end
+
+   return km
+end
 
 
+"""
+gradient step for soft k-means
+"""
+function gd_step!{T}(
+      km::KMeans{T},
+      X::Array{T,2};
+      step_size=1e-4)
+
+   n_dim, n_clust, n_ex = data_sanity(km, X)
+   
+   sigma = T(1)
+   
+   ll, mean_grad, resp = compute_grad(km, X)
+   rk = sum(resp,1)
+
+   if step_size == :em_step
+      for k in 1:n_clust
+         eta = sigma^2/rk[k] # this step size recovers EM
+         km.means[k] += eta*mean_grad[k]
+      end
+
+   elseif step_size <: T
+      for k in 1:n_clust
+         km.means[k] += step_size*mean_grad[k]
+      end
+
+   else
+      error("Bad step size $(step_size)")
+   end
+
+   return ll
+
+end
+
+"""
+Gradient for KMeans
+"""
+function compute_grad{T}(
+      km::KMeans{T},
+      X::Array{T,2})
+   
+   n_dim, n_clust, n_ex = data_sanity(km, X)
+   
+   sigma = T(1)
+
+   wrk = Array{T}(n_ex, n_dim)
+   resp = Array{T}(n_ex, n_clust)
+   ll = T(0)
+   
+   for k = 1:n_clust
+      broadcast!(-, wrk, X, km.means[k].')
+      wrk .*= wrk
+      resp[:,k] = exp(-sum(wrk, 2)/(2*sigma^2))
+   end
+   
+   ll = sum(log(T(1)/T(n_clust)*sum(resp,2)))/T(n_ex)
+   
+   # normalize
+   # Baye's rule/softmax to normalize responsibilities
+   broadcast!(/, resp, resp, sum(resp, 2))
+
+   # sometimes zero-sum responsibilities are introduced (at least for GMMs)
+   resp[find(isnan(resp))] = T(0) # set NaNs to zero
+   
+   rk = sum(resp, 1)       # \sum_{i=1}^N r_{ik}
+   rik_X = resp.'*X        # used for \sum_{i=1}^N r_{ik} x_i
+   mean_grad = Array{Array{T,1},1}(n_clust)
+   for k = 1:n_clust
+      mean_grad[k] = -T(1)/sigma*rk[k]*km.means[k]
+      mean_grad[k] += vec(T(1)/sigma^2*rik_X[k,:])
+   end
+
+   return ll, mean_grad, resp
+end
+
+# }}}
