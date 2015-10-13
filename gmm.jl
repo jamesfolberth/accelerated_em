@@ -17,7 +17,10 @@ module gmm
 #XXX
 #srand(2718218)
 
+# these are just for plotting
+using PyCall
 using PyPlot #using: brings names into current NS; import doesn't
+@pyimport matplotlib.patches as mpatches
 
 # local files
 include("types.jl")
@@ -29,7 +32,8 @@ include("example_data.jl")
 include("grad_test.jl")
 
 
-# development things
+## GMM development things ##
+# {{{
 function run_2d()
 
    X, y = example_data.dist_2d_1(1000)
@@ -93,7 +97,8 @@ function run_compare_nd()
    plot_data([X[:,1] X[:,2]], y)
    
    gmm1 = GMM(X; K=k, cov_type=:full, mean_init_method=:kmeans)
-   gmm2 = GMM(X; K=k, cov_type=:full, mean_init_method=:kmeans)
+   #gmm2 = GMM(X; K=k, cov_type=:full, mean_init_method=:kmeans)
+   gmm2 = deepcopy(gmm1)
    
    # force it!
    gmm1.trained = true
@@ -105,8 +110,8 @@ function run_compare_nd()
    println("GD\n")
    gd!(gmm2, X, print=true, n_em_iter=2, n_iter=500)
 
-   println(gmm1)
-   println(gmm2)
+   #println(gmm1)
+   #println(gmm2)
    
    figure(1)
    title("EM")
@@ -186,13 +191,70 @@ function run_grad_check()
 # }}} 
 end
 
+# }}}
+
+## KMeans development things ##
+# {{{
+function run_kmeans_nd()
+
+   n = 3
+   k = 4
+   N = 5000
+   X, y = example_data.dist_nd_1(n, k, N, T=Float64)
+  
+   if n == 2
+      figure(1)
+      clf()
+      plot_data(X, y)
+   end
+
+   km = KMeans(X; K=k, mean_init_method=:kmpp)
+   kmr = kmeans(X.', k, init=:kmpp, maxiter=0) # to check kmeans++; seems good
+   
+   # steal means from kmeans
+   # note that they use different stopping criteria
+   #for i in 1:k
+   #   km.means[i] = vec(kmr.centers[:,i])
+   #end
+   
+   if n == 2
+      plot_means(km)
+   end
+   
+   hard_em!(km, X)
+   y_pred = hard_classify(km, X) 
+   
+   println(km)
+
+   if n == 2
+      figure(2)
+      clf()
+      plot_data(X, y_pred)
+      plot_means(km)
+   end
+
+   if n == 2
+      figure(3)
+      clf()
+      title("Clustering.jl:kmeans")
+      kmr = kmeans(X.', k, init=:kmpp)
+      println(kmr.iterations)
+      plot_data(X, kmr.assignments)
+   end
+   
+end
 
 
+# }}}
 
+# GMM
 #run_2d()
 #run_nd()
-run_compare_nd()
+#run_compare_nd()
 #@time run_compare_nd()
 #run_grad_check()
+
+# KMeans
+run_kmeans_nd()
 
 end

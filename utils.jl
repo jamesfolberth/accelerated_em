@@ -4,7 +4,7 @@
 """
 Verify that dimensions of GMM and data matrix X make sense
 """
-function gmm_data_sanity{T,CM<:CovMat}(gmm::GMM{T,CM}, X::Array{T,2})
+function data_sanity{T,CM<:CovMat}(gmm::GMM{T,CM}, X::Array{T,2})
    n_dim = gmm.n_dim
    n_clust = gmm.n_clust
    n_ex = size(X,1)
@@ -15,6 +15,22 @@ function gmm_data_sanity{T,CM<:CovMat}(gmm::GMM{T,CM}, X::Array{T,2})
 
    return n_dim, n_clust, n_ex 
 end
+
+"""
+Verify that dimensions of KMeans and data matrix X make sense
+"""
+function data_sanity{T}(km::KMeans{T}, X::Array{T,2})
+   n_dim = km.n_dim
+   n_clust = km.n_clust
+   n_ex = size(X,1)
+   if n_dim != size(X,2)
+      throw(DimensionMismatch(string("X has second dimension $(size(X,2)), but",
+         " should match dimension of KMeans, $(n_dim)")))   
+   end
+
+   return n_dim, n_clust, n_ex 
+end
+
 
 
 # score_samples like sklearn's GMM class
@@ -35,7 +51,7 @@ function score_samples{T,CM<:DiagCovMat}(gmm::GMM{T,CM}, X::Array{T,2})
       error("You must train the GMM before scoring.")
    end
    
-   n_dim, n_clust, n_ex = gmm_data_sanity(gmm, X)
+   n_dim, n_clust, n_ex = data_sanity(gmm, X)
 
    # This is basically the E-step of EM
    prec = map(cm->T(1)./cm.diag, gmm.covs)
@@ -58,7 +74,7 @@ function score_samples{T,CM<:FullCovMat}(gmm::GMM{T,CM}, X::Array{T,2})
       error("You must train the GMM before scoring.")
    end
    
-   n_dim, n_clust, n_ex = gmm_data_sanity(gmm, X)
+   n_dim, n_clust, n_ex = data_sanity(gmm, X)
 
    # This is basically the E-step of EM
    cov_logdet = map(cm->logdet(cm.chol), gmm.covs) # logdet(Sigma)
@@ -75,6 +91,28 @@ function score_samples{T,CM<:FullCovMat}(gmm::GMM{T,CM}, X::Array{T,2})
    end
 
    return sum(resp,2), resp # sum over components
+end
+
+## KMeans make assignments
+function hard_classify{T}(km::KMeans{T}, X::Array{T,2})
+   
+   km.trained || throw("km should be trained before using it for classificaiton.")
+   n_dim, n_clust, n_ex = data_sanity(km, X)
+   Xt = X.' # make a copy for local use
+
+   assignments = zeros(Int64, n_ex)
+   d = zeros(n_clust, n_ex)
+  
+   # update assignments
+   for j in 1:n_ex
+      Xj = vec(Xt[:,j])
+      for i = 1:n_clust
+         d[i,j] = norm(km.means[i] - Xj,2)
+      end
+      assignments[j] = indmin(d[:,j])
+   end
+
+   return assignments
 end
 
 
@@ -102,6 +140,29 @@ end
 function plot_data(X)
    y = ones(Int, size(X,1))
    plot_data(X,y)
+end
+
+
+function plot_means{T}(km::KMeans{T})
+   
+   ax = gca()
+   if km.n_dim == 1
+      error("not implemented")
+
+   elseif km.n_dim == 2
+      for mean in km.means
+         c = mpatches.Circle((mean[1],mean[2]), 1)
+         ax[:add_patch](c)
+      end
+      show()
+
+   elseif km.n_dim == 3
+      error("not implemented")
+
+   else
+      error("Plotting in $(km.n_dim) dimensions not supported.")
+   end
+
 end
 
 

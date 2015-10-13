@@ -1,6 +1,8 @@
 
 using Base.LinAlg.BLAS: ger!
 
+## GMM ##
+# {{{
 # EM algorithm and helpers
 function em!{T,CM<:CovMat}(
       gmm::GMM{T,CM},
@@ -9,7 +11,7 @@ function em!{T,CM<:CovMat}(
       ll_tol::T=1e-3,
       print=false)
 
-   n_dim, n_clust, n_ex = gmm_data_sanity(gmm, X)
+   n_dim, n_clust, n_ex = data_sanity(gmm, X)
       
    prev_ll = -T(Inf)
    ll_diff = T(0.0)
@@ -55,7 +57,7 @@ function em_step!{T,CM<:DiagCovMat}(
       X::Array{T,2};
       var_thresh::T=1e-3)
 
-   n_dim, n_clust, n_ex = gmm_data_sanity(gmm, X)
+   n_dim, n_clust, n_ex = data_sanity(gmm, X)
 
    ## E step ##
    # compute responsibilities
@@ -111,7 +113,7 @@ function em_step!{T,CM<:FullCovMat}(
       X::Array{T,2};
       chol_thresh::T=1e-1)
 
-   n_dim, n_clust, n_ex = gmm_data_sanity(gmm, X)
+   n_dim, n_clust, n_ex = data_sanity(gmm, X)
 
    ## E step ##
    # compute responsibilities
@@ -191,7 +193,7 @@ function compute_ll{T,CM<:DiagCovMat}(
       gmm::GMM{T,CM},
       X::Array{T,2})
 
-   n_dim, n_clust, n_ex = gmm_data_sanity(gmm, X)
+   n_dim, n_clust, n_ex = data_sanity(gmm, X)
    
    # this is similar to E step
    prec = map(cm->T(1)./cm.diag, gmm.covs)
@@ -216,7 +218,7 @@ function compute_ll{T,CM<:FullCovMat}(
       gmm::GMM{T,CM},
       X::Array{T,2})
 
-   n_dim, n_clust, n_ex = gmm_data_sanity(gmm, X)
+   n_dim, n_clust, n_ex = data_sanity(gmm, X)
    
    # this is similar to E step
    cov_logdet = map(cm->logdet(cm.chol), gmm.covs) # logdet(Sigma)
@@ -236,4 +238,69 @@ function compute_ll{T,CM<:FullCovMat}(
    ll = reshape(sum(log(sum(logpdf, 2)), 1)/T(n_ex), 1)[1]
    return ll
 end
+
+# }}}
+
+## KMeans ##
+# {{{
+
+# EM algorithm and helpers
+"""
+Train using standard K-means algorithm
+"""
+function hard_em!{T}(
+      km::KMeans{T},
+      X::Array{T,2};
+      n_iter::Int=25,
+      print=false)
+   
+   n_dim, n_clust, n_ex = data_sanity(km, X)
+   Xt = X.' # make a copy for local use
+   
+   means_to_update = Array{Bool}(n_clust)
+   fill!(means_to_update, true)
+   clust_counts = zeros(T, n_clust)
+   assignments = zeros(Int64, n_ex)
+
+   # matrix for squared distances
+   d2 = zeros(n_clust, n_ex)
+   
+   n_it = 0
+   while any(means_to_update)
+      n_it += 1
+
+      # update assignments
+      fill!(means_to_update, false)
+      for j in 1:n_ex
+         Xj = vec(Xt[:,j])
+         for i = 1:n_clust
+            d2[i,j] = norm(km.means[i] - Xj,2)^2
+         end
+         aj = indmin(d2[:,j])
+         if aj != assignments[j]
+            means_to_update[aj] = true
+            assignments[j] = aj
+         end
+      end
+ 
+      # update means
+      fill!(clust_counts, T(0))
+      fill!(km.means, zeros(T, n_dim))
+      for j in 1:n_ex
+         a = assignments[j]
+         km.means[a] += vec(Xt[:,j])
+         clust_counts[a] += T(1)
+      end
+      for i in 1:n_clust
+         km.means[i] /= clust_counts[i]
+      end
+   
+   end
+   println(n_it)
+
+   km.trained = true
+   
+end
+
+# }}}
 

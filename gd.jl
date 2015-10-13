@@ -15,7 +15,7 @@ function gd!{T,CM<:CovMat}(
       ll_tol::T=1e-3,
       print=false)
    
-   n_dim, n_clust, n_ex = gmm_data_sanity(gmm, X)
+   n_dim, n_clust, n_ex = data_sanity(gmm, X)
    
    # initially do a few EM steps
    prev_ll = -T(Inf)
@@ -35,6 +35,8 @@ function gd!{T,CM<:CovMat}(
          ll, gmm, bt_step = bt_ls_step(gmm, X)
       else
          ll, gmm, bt_step = bt_ls_step(gmm, X, alpha=bt_step)
+         # hacky way to attempt to grow step size
+         #ll, gmm, bt_step = bt_ls_step(gmm, X, alpha=2.0*bt_step)
       end
 
       if print
@@ -67,7 +69,7 @@ function gd_step!{T,CM<:DiagCovMat}(
       var_thresh::T=1e-3,
       step_size::T=1e-4)
    
-   n_dim, n_clust, n_ex = gmm_data_sanity(gmm, X)
+   n_dim, n_clust, n_ex = data_sanity(gmm, X)
    
    error("Not implemented!")
 end
@@ -78,7 +80,7 @@ function gd_step!{T,CM<:FullCovMat}(
       chol_thresh::T=1e-1,
       step_size::T=1e-4)
   
-   n_dim, n_clust, n_ex = gmm_data_sanity(gmm, X)
+   n_dim, n_clust, n_ex = data_sanity(gmm, X)
    
    gmm._wk[:] = log(gmm.weights[:])
    ll, wk_grad, mean_grad, chol_grad = compute_grad(gmm, X)
@@ -112,7 +114,7 @@ function bt_ls_step{T,CM<:FullCovMat}(
       c::T=1e-4)
    
    function step_gmm!(gmm, wk_grad, mean_grad, chol_grad, alpha)
-      n_dim, n_clust, n_ex = gmm_data_sanity(gmm, X)
+      n_dim, n_clust, n_ex = data_sanity(gmm, X)
 
       gmm._wk[:] = log(gmm.weights[:])
       for k in 1:n_clust
@@ -130,7 +132,7 @@ function bt_ls_step{T,CM<:FullCovMat}(
       gmm.weights /= sum(gmm.weights)
    end
    
-   n_dim, n_clust, n_ex = gmm_data_sanity(gmm, X)
+   n_dim, n_clust, n_ex = data_sanity(gmm, X)
    ll, wk_grad, mean_grad, chol_grad = compute_grad(gmm, X)
    
    alpha_k = alpha
@@ -169,7 +171,7 @@ function compute_grad{T,CM<:DiagCovMat}(
       gmm::GMM{T,CM},
       X::Array{T,2})
    
-   n_dim, n_clust, n_ex = gmm_data_sanity(gmm, X)
+   n_dim, n_clust, n_ex = data_sanity(gmm, X)
    
    error("Not implemented!")
 end
@@ -178,7 +180,7 @@ function compute_grad{T,CM<:FullCovMat}(
       gmm::GMM{T,CM},
       X::Array{T,2})
 
-   n_dim, n_clust, n_ex = gmm_data_sanity(gmm, X)
+   n_dim, n_clust, n_ex = data_sanity(gmm, X)
 
    ## compute responsibilities ##
    cov_logdet = map(cm->logdet(cm.chol), gmm.covs) # logdet(Sigma)
