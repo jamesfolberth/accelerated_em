@@ -4,7 +4,7 @@ using Base.LinAlg.BLAS: ger!
 #TODO: Verify that gradients are correct with Stephen's code
 #TODO: gd_step!, compute_grad for DiagCovMat
 
-## GMM ##
+## GMM - simple GD ##
 # {{{
 """
 Gradient descent driver
@@ -249,7 +249,8 @@ end
 
 # }}}
 
-## KMeans ##
+
+## KMeans - simple GD ##
 # {{{
 """
 Gradient descent driver
@@ -397,8 +398,187 @@ function bt_ls_step!{T}(
    return _ll, alpha_k
 end
 
+# }}}
 
 
+## KMeans - Nesterov's 2nd method ##
+# {{{
+"""
+Nesterov's 2nd method.  Accelerated gradient descent driver
+"""
+function nest2!{T}(
+      km::KMeans{T},
+      X::Array{T,2};
+      n_iter::Int=25,
+      n_em_iter::Int=2,
+      ll_tol::T=1e-3,
+      print=false)
+   
+   n_dim, n_clust, n_ex = data_sanity(km, X)
+   
+   # initially do a few EM steps
+   prev_ll = -T(Inf)
+   for it in 1:n_em_iter
+      prev_ll = em_step!(km, X)
+      println("em!: log-likelihood = $(prev_ll)")
+   end
+
+   nu = deepcopy(km)
+   y = deepcopy(km)
+
+   ll_diff = T(0)
+   bt_step = T(1)
+   for it in 1:n_iter
+      theta = T(2)/T(it+1)
+      weighted_sum!(y, T(1)-theta, km, theta, nu)
+  
+      # naive step size
+      #ll = nest2_step!(km, X, step_size=:em_step)
+      #ll = gd_step!(km, X, step_size=1e-4/(1+it)^(.7))
+      
+      # backtracking line search
+      if it == 1
+         ll, bt_step = nest2_bt_ls_step!(nu, y, X, theta, alpha=bt_step)
+      else
+         #ll, bt_step = nest2_bt_ls_step!(nu, y, X, theta)
+         #ll, bt_step = nest2_bt_ls_step!(nu, y, X, theta, alpha=bt_step)
+         # hacky way to attempt to grow step size
+         ll, bt_step = nest2_bt_ls_step!(nu, y, X, theta, alpha=2.0*bt_step)
+      end
+
+      weighted_sum!(km, T(1)-theta, km, theta, nu)
+
+      if print
+         println("nest2!: log-likelihood = $(ll)")
+         #TODO print convergence rates
+      end
+     
+      # check log-likelihood convergence
+      ll_diff = abs(prev_ll - ll)
+      if ll_diff < ll_tol
+         break
+      end
+      prev_ll = ll
+   end
+   
+   if ll_diff > ll_tol
+      warn("Log-likelihood has not reached convergence criterion of $(ll_tol) in $(n_iter) iterations.  Nesterov's 2nd method may not have converged!")
+
+   else
+      km.trained = true
+   end
+
+   return km
+end
+
+
+"""
+Form a weighted sum of 
+km <- alpha*km1 + beta*km2
+"""
+function weighted_sum!{T}(
+      km::KMeans{T},
+      alpha::T, km1::KMeans{T},
+      beta::T, km2::KMeans{T})
+   
+   size(km.means) == size(km1.means) == size(km2.means) ||
+      error("Number of clusters for weighted sum should be the same.")
+
+   size(km.means[1]) == size(km1.means[1]) == size(km2.means[2]) ||
+      error("Number of dimensions for weighted sum should be the same.")
+
+   for k in 1:size(km.means,1)
+      km.means[k] = alpha*km1.means[k] + beta*km2.means[k]
+   end
+end
+
+
+"""
+simple backtracking line search method for Nesterov's second method
+`nu` - mix of current x and previous nu
+`y` - mix of current x and current nu, used for gradient
+`X` - data matrix (n_ex, n_dim)
+`theta_k` - 2/(k+1) for nest2
+`alpha` - step size to start with
+`rho` - backtracking step size reduction factor
+`c` - sufficient step criterion
+"""
+function nest2_bt_ls_step!{T<:Real}(
+      nu::KMeans{T},
+      y::KMeans{T},
+      X::Array{T,2},
+      theta_k::T;
+      alpha::T=1e0,
+      rho::T=0.5,
+      c::T=1e-4)
+   
+   function step_km!(km, mean_grad, alpha)
+      n_dim, n_clust, n_ex = data_sanity(km, X)
+
+      for k in 1:n_clust
+         km.means[k] += alpha*mean_grad[k]
+      end
+   end
+   
+   n_dim, n_clust, n_ex = data_sanity(nu, X)
+   ll, mean_grad, resp  = compute_grad(y, X)
+   
+   alpha_k = alpha
+   _nu = deepcopy(nu)
+   step_km!(_nu, mean_grad, alpha_k/theta_k)
+   _ll = compute_ll(_nu, X)
+
+   grad_ip = T(0)
+   for k in 1:n_clust
+      grad_ip += sumabs2(mean_grad[k])
+   end
+   #println("  grad_ip = $(grad_ip)")
+   
+   #TODO convergence crit?
+   crit = T(0)
+   for k in 1:n_clust
+      crit += dot(mean_grad[k], _nu.means[k]-y.means[k])
+      crit -= T(theta_k^2/(2.0*alpha_k))*sumabs2(_nu.means[k]-y.means[k])
+   end
+   
+   ls_count = 1
+   #println(c*alpha_k/theta_k*grad_ip)
+   #while isnan(_ll) || _ll < ll + c*alpha_k*grad_ip
+   #while isnan(_ll) || _ll < ll + c*alpha_k/theta_k*grad_ip
+   while isnan(_ll) || _ll < ll + c*crit
+      alpha_k *= rho 
+
+      _nu = deepcopy(nu)
+      step_km!(_nu, mean_grad, alpha_k/theta_k)
+      _ll = compute_ll(_nu, X)
+      #println("  alpha_k = $(alpha_k), _ll = $(_ll), diff = $(_ll-ll-c*alpha_k*grad_ip)")
+
+      crit = T(0)
+      for k in 1:n_clust
+         crit += dot(mean_grad[k], _nu.means[k]-y.means[k])
+         crit -= T(theta_k^2/(2.0*alpha_k))*sumabs2(_nu.means[k]-y.means[k])
+      end
+
+      if alpha_k < eps(ll)
+         return ll, alpha_k # sufficient decrease not found
+      end
+
+      ls_count += 1
+      #println("ls_count = $(ls_count)")
+   end
+   
+   #TODO why do I need to do this for k-means, but not GMM?
+   copy!(nu.means, _nu.means)
+
+   return _ll, alpha_k
+  
+end
+
+# }}}
+
+
+## Gradient ##
+# {{{
 """
 Gradient for KMeans
 """
@@ -441,3 +621,4 @@ function compute_grad{T}(
 end
 
 # }}}
+

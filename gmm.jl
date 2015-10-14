@@ -224,14 +224,19 @@ function run_kmeans_nd()
    end
  
    em!(km2, X, print=true)
+   km2.trained = true
    y_pred2 = soft_classify(km2, X)
    println()
 
    #hard_em!(km, X)
    #y_pred = hard_classify(km, X) 
  
-   #em!(km, X, print=true)
-   gd!(km, X, n_em_iter=2, print=true)
+   em!(km, X, print=true, ll_tol=0.5)
+   #gd!(km, X, n_em_iter=2, print=true)
+   nest2!(km, X, n_em_iter=0, print=true)
+   #nest2!(km, X, n_em_iter=2, print=true, ll_tol=1e-2)
+   #gd!(km, X, n_em_iter=0, print=true)
+   km.trained = true
    y_pred = soft_classify(km, X) 
    println(km)
 
