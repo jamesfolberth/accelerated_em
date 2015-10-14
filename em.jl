@@ -384,6 +384,37 @@ function em_step!{T}(
 end
 
 
+"""
+Compute log-likelihood for current parameters
+"""
+function compute_ll{T}(
+      km::KMeans{T},
+      X::Array{T,2})
+
+   n_dim, n_clust, n_ex = data_sanity(km, X)
+   
+   # this is the E step for soft k-means,
+   # but should also hold for hard k-means, as it's only the M
+   # step that is different
+   sigma = T(1)
+
+   wrk = Array{T}(n_ex, n_dim)
+   resp = Array{T}(n_ex, n_clust)
+   ll = T(0)
+   
+   for k = 1:n_clust
+      broadcast!(-, wrk, X, km.means[k].')
+      wrk .*= wrk
+      resp[:,k] = exp(-sum(wrk, 2)/(2*sigma^2))
+   end
+   
+   ll = sum(log(T(1)/T(n_clust)*sum(resp,2)))/T(n_ex)
+   
+   # the rest of the E step would normalize resp
+   return ll
+end
+
+
 
 # }}}
 

@@ -210,30 +210,32 @@ function run_kmeans_nd()
 
    km = KMeans(X; K=k, mean_init_method=:kmpp)
    km2 = deepcopy(km)
-   kmr = kmeans(X.', k, init=:kmpp, maxiter=0) # to check kmeans++; seems good
    
    # steal means from Clustering's kmeans
-   # note that they use different stopping criteria
-   for i in 1:k
-      km.means[i] = vec(kmr.centers[:,i])
-      km2.means[i] = vec(kmr.centers[:,i])
-   end
+   # note that they use different stopping criteria for EM
+   #kmr = kmeans(X.', k, init=:kmpp, maxiter=0) # to check kmeans++; seems good
+   #for i in 1:k
+   #   km.means[i] = vec(kmr.centers[:,i])
+   #   km2.means[i] = vec(kmr.centers[:,i])
+   #end
    
    if n == 2
       plot_means(km)
    end
-   
+ 
+   em!(km2, X, print=true)
+   y_pred2 = soft_classify(km2, X)
+   println()
+
    #hard_em!(km, X)
    #y_pred = hard_classify(km, X) 
  
    #em!(km, X, print=true)
-   gd!(km, X, n_em_iter=0, print=true)
+   gd!(km, X, n_em_iter=2, print=true)
    y_pred = soft_classify(km, X) 
    println(km)
-  
-   em!(km2, X, print=true)
-   y_pred2 = soft_classify(km2, X)
-   println("\|y_pred - y_pred2\| = $(norm(y_pred-y_pred2))")
+
+   #println("\|y_pred - y_pred2\| = $(norm(y_pred-y_pred2))")
 
    if n == 2
       figure(2)

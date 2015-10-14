@@ -275,18 +275,18 @@ function gd!{T}(
    bt_step = T(1)
    for it in 1:n_iter
       # naive step size
-      ll = gd_step!(km, X, step_size=:em_step)
+      #ll = gd_step!(km, X, step_size=:em_step)
       #ll = gd_step!(km, X, step_size=1e-4/(1+it)^(.7))
       
       # backtracking line search
       #TODO
-      #if it == 1
-      #   ll, km, bt_step = bt_ls_step(km, X)
-      #else
-      #   ll, km, bt_step = bt_ls_step(km, X, alpha=bt_step)
-      #   # hacky way to attempt to grow step size
-      #   #ll, km, bt_step = bt_ls_step(km, X, alpha=2.0*bt_step)
-      #end
+      if it == 1
+         ll, bt_step = bt_ls_step!(km, X, alpha=bt_step)
+      else
+         ll, bt_step = bt_ls_step!(km, X, alpha=bt_step)
+         # hacky way to attempt to grow step size
+         #ll, bt_step = bt_ls_step(km, X, alpha=2.0*bt_step)
+      end
 
       if print
          println("gd!: log-likelihood = $(ll)")
@@ -345,6 +345,59 @@ function gd_step!{T}(
    return ll
 
 end
+
+"""
+Backtracking line search for KMeans GD
+"""
+function bt_ls_step!{T}(
+      km::KMeans{T},
+      X::Array{T,2};
+      alpha::T=1e-2,
+      rho::T=0.5,
+      c::T=1e-4)
+   
+   function step_km!(km, mean_grad, alpha)
+      n_dim, n_clust, n_ex = data_sanity(km, X)
+
+      for k in 1:n_clust
+         km.means[k] += alpha*mean_grad[k]
+      end
+   end
+   
+   n_dim, n_clust, n_ex = data_sanity(km, X)
+   ll, mean_grad, resp  = compute_grad(km, X)
+   
+   alpha_k = alpha
+   _km = deepcopy(km)
+   step_km!(_km, mean_grad, alpha_k)
+   _ll = compute_ll(_km, X)
+
+   grad_ip = T(0)
+   for k in 1:n_clust
+      grad_ip += sumabs2(mean_grad[k])
+   end
+   #println("  grad_ip = $(grad_ip)")
+
+   while isnan(_ll) || _ll < ll + c*alpha_k*grad_ip
+      alpha_k *= rho 
+
+      _km = deepcopy(km)
+      step_km!(_km, mean_grad, alpha_k)
+      _ll = compute_ll(_km, X)
+      #println("  alpha_k = $(alpha_k), _ll = $(_ll), diff = $(_ll-ll-c*alpha_k*grad_ip)")
+      
+      if alpha_k < eps(ll)
+         return ll, alpha_k # sufficient decrease not found
+      end
+   end
+   
+   #TODO why do I need to do this for KMeans, but not GMM?
+   copy!(km.means, _km.means)
+
+   return _ll, alpha_k
+end
+
+
 
 """
 Gradient for KMeans
