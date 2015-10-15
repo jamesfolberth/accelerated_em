@@ -362,10 +362,15 @@ function em_step!{T}(
    for k = 1:n_clust
       broadcast!(-, wrk, X, km.means[k].')
       wrk .*= wrk
-      resp[:,k] = exp(-sum(wrk, 2)/(2*sigma^2))
+      resp[:,k] = -sum(wrk, 2)/(2*sigma^2)
+
    end
-   
-   ll = sum(log(T(1)/T(n_clust)*sum(resp,2)))/T(n_ex)
+
+   # log-sum-exp trick
+   m = maximum(resp,2)
+   broadcast!(-, resp, resp, m)
+   resp = exp(resp)
+   ll = (sum(m) + sum(log(sum(resp,2))) - log(T(n_clust)))/T(n_ex)
    
    # normalize
    # Baye's rule/softmax to normalize responsibilities
@@ -405,11 +410,16 @@ function compute_ll{T}(
    for k = 1:n_clust
       broadcast!(-, wrk, X, km.means[k].')
       wrk .*= wrk
-      resp[:,k] = exp(-sum(wrk, 2)/(2*sigma^2))
+      resp[:,k] = -sum(wrk, 2)/(2*sigma^2)
+
    end
-   
-   ll = sum(log(T(1)/T(n_clust)*sum(resp,2)))/T(n_ex)
-   
+
+   # log-sum-exp trick
+   m = maximum(resp,2)
+   broadcast!(-, resp, resp, m)
+   resp = exp(resp)
+   ll = (sum(m) + sum(log(sum(resp,2))) - log(T(n_clust)))/T(n_ex)
+ 
    # the rest of the E step would normalize resp
    return ll
 end

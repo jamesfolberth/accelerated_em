@@ -11,6 +11,7 @@ There are other GMM modules in Julia:
 #TODO Make sure the new typing system works like it should
 #TODO How does documentation work?
 #TODO unit tests would be nice
+#TODO roundoff in ll computations
 
 module gmm
 
@@ -63,9 +64,10 @@ function run_nd()
    N = 5000
    X, y = example_data.dist_nd_1(n, k, N, T=Float64, print=true)
    
-   clf()
-   plot_data([X[:,1] X[:,2]], y)
-   
+   if n == 2
+      clf()
+      plot_data([X[:,1] X[:,2]], y)
+   end 
    #gmm = GMM(X; K=k, cov_type=:diag, mean_init_method=:kmeans)
    gmm = GMM(X; K=k, cov_type=:full, mean_init_method=:kmeans)
 
@@ -75,27 +77,31 @@ function run_nd()
    gmm.trained = true # force it, even if training fails
    
    println(gmm) 
-
-   plot_gmm_contours(gmm,
-      [1.1*minimum(X[:,1]), 1.1*maximum(X[:,1]),
-       1.1*minimum(X[:,2]), 1.1*maximum(X[:,2])])
+   
+   if n == 2
+      plot_gmm_contours(gmm,
+         [1.1*minimum(X[:,1]), 1.1*maximum(X[:,1]),
+         1.1*minimum(X[:,2]), 1.1*maximum(X[:,2])])
+   end
 
 end
 
 function run_compare_nd()
 
-   n = 2
+   n = 3
    k = 4
    N = 5000
    X, y = example_data.dist_nd_1(n, k, N, T=Float64, print=true)
- 
-   figure(1)
-   clf()
-   plot_data([X[:,1] X[:,2]], y)
-   figure(2)
-   clf()
-   plot_data([X[:,1] X[:,2]], y)
    
+   if n == 2
+      figure(1)
+      clf()
+      plot_data([X[:,1] X[:,2]], y)
+      figure(2)
+      clf()
+      plot_data([X[:,1] X[:,2]], y)
+   end
+
    gmm1 = GMM(X; K=k, cov_type=:full, mean_init_method=:kmeans)
    #gmm2 = GMM(X; K=k, cov_type=:full, mean_init_method=:kmeans)
    gmm2 = deepcopy(gmm1)
@@ -113,17 +119,19 @@ function run_compare_nd()
    #println(gmm1)
    #println(gmm2)
    
-   figure(1)
-   title("EM")
-   plot_gmm_contours(gmm1,
-      [1.1*minimum(X[:,1]), 1.1*maximum(X[:,1]),
-       1.1*minimum(X[:,2]), 1.1*maximum(X[:,2])])
+   if n == 2
+      figure(1)
+      title("EM")
+      plot_gmm_contours(gmm1,
+         [1.1*minimum(X[:,1]), 1.1*maximum(X[:,1]),
+          1.1*minimum(X[:,2]), 1.1*maximum(X[:,2])])
 
-   figure(2)
-   title("GD")
-   plot_gmm_contours(gmm2,
-      [1.1*minimum(X[:,1]), 1.1*maximum(X[:,1]),
-       1.1*minimum(X[:,2]), 1.1*maximum(X[:,2])])
+      figure(2)
+      title("GD")
+      plot_gmm_contours(gmm2,
+         [1.1*minimum(X[:,1]), 1.1*maximum(X[:,1]),
+          1.1*minimum(X[:,2]), 1.1*maximum(X[:,2])])
+   end
 
 end
 
@@ -197,7 +205,7 @@ end
 # {{{
 function run_kmeans_nd()
 
-   n = 3
+   n = 10
    k = 4
    N = 5000
    X, y = example_data.dist_nd_1(n, k, N, T=Float64)
