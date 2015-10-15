@@ -286,9 +286,9 @@ function gd!{T}(
       if it == 1
          ll, bt_step = bt_ls_step!(km, X, alpha=bt_step)
       else
-         ll, bt_step = bt_ls_step!(km, X, alpha=bt_step)
+         #ll, bt_step = bt_ls_step!(km, X, alpha=bt_step)
          # hacky way to attempt to grow step size
-         #ll, bt_step = bt_ls_step(km, X, alpha=2.0*bt_step)
+         ll, bt_step = bt_ls_step!(km, X, alpha=8.0*bt_step)
       end
 
       if print
@@ -357,7 +357,7 @@ function bt_ls_step!{T}(
       X::Array{T,2};
       alpha::T=1e-2,
       rho::T=0.5,
-      c::T=1e-4)
+      c::T=1e-5)
    
    function step_km!(km, mean_grad, alpha)
       n_dim, n_clust, n_ex = data_sanity(km, X)
@@ -435,18 +435,17 @@ function nest2!{T}(
       weighted_sum!(y, T(1)-theta, km, theta, nu)
   
       # naive step size
-      #ll = nest2_step!(km, X, step_size=:em_step)
-      #ll = gd_step!(km, X, step_size=1e-4/(1+it)^(.7))
+      ll = nest2_step!(nu, y, X, theta, step_size=:em_step)
       
       # backtracking line search
-      if it == 1
-         ll, bt_step = nest2_bt_ls_step!(nu, y, X, theta, alpha=bt_step)
-      else
-         #ll, bt_step = nest2_bt_ls_step!(nu, y, X, theta)
-         #ll, bt_step = nest2_bt_ls_step!(nu, y, X, theta, alpha=bt_step)
-         # hacky way to attempt to grow step size
-         ll, bt_step = nest2_bt_ls_step!(nu, y, X, theta, alpha=2.0*bt_step)
-      end
+      #if it == 1
+      #   ll, bt_step = nest2_bt_ls_step!(nu, y, X, theta, alpha=bt_step)
+      #else
+      #   #ll, bt_step = nest2_bt_ls_step!(nu, y, X, theta)
+      #   #ll, bt_step = nest2_bt_ls_step!(nu, y, X, theta, alpha=bt_step)
+      #   # hacky way to attempt to grow step size
+      #   ll, bt_step = nest2_bt_ls_step!(nu, y, X, theta, alpha=8.0*bt_step)
+      #end
 
       weighted_sum!(km, T(1)-theta, km, theta, nu)
 
@@ -494,6 +493,49 @@ function weighted_sum!{T}(
    end
 end
 
+"""
+take step of Nesterov's second method
+`nu` - mix of current x and previous nu
+`y` - mix of current x and current nu, used for gradient
+`X` - data matrix (n_ex, n_dim)
+`theta_k` - 2/(k+1) for nest2
+`step_size` - :em_step or number
+"""
+function nest2_step!{T<:Real}(
+      nu::KMeans{T},
+      y::KMeans{T},
+      X::Array{T,2},
+      theta_k::T;
+      step_size=1e-4)
+   
+   sigma = T(1)
+   
+   n_dim, n_clust, n_ex = data_sanity(nu, X)
+   ll, mean_grad, resp  = compute_grad(y, X)
+   rk = sum(resp,1)
+   
+   sigma = T(1)
+   
+   if step_size == :em_step
+      for k in 1:n_clust
+         eta = sigma^2/rk[k] # this step size recovers EM
+         nu.means[k] += eta/theta_k*mean_grad[k]
+      end
+
+   elseif step_size <: T
+      for k in 1:n_clust
+         nu.means[k] += step_size/theta_k*mean_grad[k]
+      end
+
+   else
+      error("Bad step size $(step_size)")
+   end
+
+   return ll
+  
+end
+
+
 
 """
 simple backtracking line search method for Nesterov's second method
@@ -512,7 +554,7 @@ function nest2_bt_ls_step!{T<:Real}(
       theta_k::T;
       alpha::T=1e0,
       rho::T=0.5,
-      c::T=1e-4)
+      c::T=1e-6)
    
    function step_km!(km, mean_grad, alpha)
       n_dim, n_clust, n_ex = data_sanity(km, X)

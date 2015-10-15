@@ -11,16 +11,27 @@ There are other GMM modules in Julia:
 #TODO Make sure the new typing system works like it should
 #TODO How does documentation work?
 #TODO unit tests would be nice
+#TODO separate/clean up GMM and KMeans.  separate dirs?
 
 module gmm
 
 #XXX
 #srand(2718218)
+#srand(3)
+#srand(1) # for real data
+seed = rand(1:99999999)
+#seed = 1
+println("seed = $(seed)")
+srand(seed)
 
 # these are just for plotting
 using PyCall
 using PyPlot #using: brings names into current NS; import doesn't
 @pyimport matplotlib.patches as mpatches
+
+# some real data
+import Census1990
+
 
 # local files
 include("types.jl")
@@ -203,9 +214,9 @@ end
 # {{{
 function run_kmeans_nd()
 
-   n = 3
-   k = 4
-   N = 5000
+   n = 2
+   k = 8
+   N = 50000
    X, y = example_data.dist_nd_1(n, k, N, T=Float64)
   
    if n == 2
@@ -216,6 +227,7 @@ function run_kmeans_nd()
 
    km = KMeans(X; K=k, mean_init_method=:kmpp)
    km2 = deepcopy(km)
+   km3 = deepcopy(km)
    
    # steal means from Clustering's kmeans
    # note that they use different stopping criteria for EM
@@ -228,23 +240,39 @@ function run_kmeans_nd()
    if n == 2
       plot_means(km)
    end
- 
-   em!(km2, X, print=true)
-   km2.trained = true
-   y_pred2 = soft_classify(km2, X)
-   println()
 
-   #hard_em!(km, X)
-   #y_pred = hard_classify(km, X) 
- 
-   em!(km, X, print=true, ll_tol=0.5)
-   #gd!(km, X, n_em_iter=2, print=true)
-   nest2!(km, X, n_em_iter=0, print=true)
-   #nest2!(km, X, n_em_iter=2, print=true, ll_tol=1e-2)
-   #gd!(km, X, n_em_iter=0, print=true)
+   em!(km, X, print=true, n_iter=100)
    km.trained = true
-   y_pred = soft_classify(km, X) 
-   println(km)
+   y_pred = soft_classify(km, X)
+   println()
+   
+   ##em!(km2, X, print=true, ll_tol=0.5)
+   #gd!(km2, X, n_em_iter=0, print=true, n_iter=100)
+   #km2.trained = true
+   #y_pred2 = soft_classify(km2, X)
+   #println()
+
+   #em!(km3, X, print=true, ll_tol=0.5)
+   nest2!(km3, X, n_em_iter=0, print=true, n_iter=100)
+   km3.trained = true
+   y_pred3 = soft_classify(km3, X)
+
+   #em!(km, X, print=true)
+   #km.trained = true
+   #y_pred1 = soft_classify(km, X)
+   #println()
+
+   ##hard_em!(km, X)
+   ##y_pred = hard_classify(km, X) 
+ 
+   #em!(km2, X, print=true, ll_tol=0.5)
+   ##gd!(km2, X, n_em_iter=2, print=true)
+   #nest2!(km2, X, n_em_iter=0, print=true)
+   ##nest2!(km, X, n_em_iter=2, print=true, ll_tol=1e-2)
+   ##gd!(km, X, n_em_iter=0, print=true)
+   #km2.trained = true
+   #y_pred2 = soft_classify(km2, X)
+   #println(km2)
 
    #println("\|y_pred - y_pred2\| = $(norm(y_pred-y_pred2))")
 
@@ -268,14 +296,50 @@ end
 
 # }}}
 
+## Real data ##
+# {{{
+function run_census_kmeans()
+   
+   N = 500000
+   k = 12
+   X = Census1990.read_array(nrows=N)
+   println("Census1990 (subsample) data loaded.")
+  
+   km = KMeans(X; K=k, mean_init_method=:kmpp)
+   km2 = deepcopy(km)
+   km3 = deepcopy(km)
+   
+   em!(km, X, print=true)
+   km.trained = true
+   y_pred = soft_classify(km, X)
+   println()
+   
+   ##em!(km2, X, print=true, ll_tol=0.5)
+   #gd!(km2, X, n_em_iter=0, print=true, n_iter=100)
+   #km2.trained = true
+   #y_pred2 = soft_classify(km2, X)
+   #println()
+
+   #em!(km3, X, print=true, ll_tol=0.5)
+   nest2!(km3, X, n_em_iter=0, print=true, n_iter=100)
+   km3.trained = true
+   y_pred3 = soft_classify(km3, X)
+
+end
+
+# }}}
+
 # GMM
 #run_2d()
 #run_nd()
-run_compare_nd()
+#run_compare_nd()
 #@time run_compare_nd()
 #run_grad_check()
 
 # KMeans
 #run_kmeans_nd()
+
+# real data
+run_census_kmeans()
 
 end
