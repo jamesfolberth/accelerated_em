@@ -11,7 +11,6 @@ There are other GMM modules in Julia:
 #TODO Make sure the new typing system works like it should
 #TODO How does documentation work?
 #TODO unit tests would be nice
-#TODO roundoff in ll computations
 
 module gmm
 
@@ -30,7 +29,6 @@ include("gd.jl")
 include("utils.jl")
 
 include("example_data.jl")
-include("grad_test.jl")
 
 
 ## GMM development things ##
@@ -68,12 +66,12 @@ function run_nd()
       clf()
       plot_data([X[:,1] X[:,2]], y)
    end 
-   #gmm = GMM(X; K=k, cov_type=:diag, mean_init_method=:kmeans)
-   gmm = GMM(X; K=k, cov_type=:full, mean_init_method=:kmeans)
+   gmm = GMM(X; K=k, cov_type=:diag, mean_init_method=:kmeans)
+   #gmm = GMM(X; K=k, cov_type=:full, mean_init_method=:kmeans)
 
-   #em!(gmm, X, print=true)
+   em!(gmm, X, print=true)
    #em!(gmm, X, print=true, ll_tol=-1.0, n_iter=100) # run forever...
-   gd!(gmm, X, print=true, n_em_iter=1)
+   #gd!(gmm, X, print=true, n_em_iter=1)
    gmm.trained = true # force it, even if training fails
    
    println(gmm) 
@@ -205,7 +203,7 @@ end
 # {{{
 function run_kmeans_nd()
 
-   n = 10
+   n = 3
    k = 4
    N = 5000
    X, y = example_data.dist_nd_1(n, k, N, T=Float64)
@@ -273,11 +271,11 @@ end
 # GMM
 #run_2d()
 #run_nd()
-#run_compare_nd()
+run_compare_nd()
 #@time run_compare_nd()
 #run_grad_check()
 
 # KMeans
-run_kmeans_nd()
+#run_kmeans_nd()
 
 end

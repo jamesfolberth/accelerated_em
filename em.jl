@@ -65,17 +65,21 @@ function em_step!{T,CM<:DiagCovMat}(
    cov_det = map(cm->prod(cm.diag), gmm.covs) # det(Sigma)
 
    wrk = Array{T}(n_ex, n_dim) # used for storing (X-mean)
-   logpdf = Array{T}(n_ex, n_clust)  # log p(y_i | mean_k, Sigma_k)
    resp = Array{T}(n_ex, n_clust)    # responsibility of component j for example i
    for k in 1:n_clust
       broadcast!(-,wrk,X,gmm.means[k].')     # (x-mean)
       broadcast!(.*,wrk,wrk.*wrk, prec[k].') # (x-mean)^T*prec*(x-mean)
-      logpdf[:,k] = -T(0.5)*sum(wrk, 2) - T(0.5)*log(cov_det[k]) -
+      resp[:,k] = -T(0.5)*sum(wrk, 2) - T(0.5)*log(cov_det[k]) -
          T(n_dim*0.5)*log(2*pi)
-      resp[:,k] = gmm.weights[k]*exp(logpdf[:,k])
    end
 
-   logpdf = copy(resp) # will use later for log-likelihood
+   # log-sum-exp trick
+   m = maximum(resp,2)
+   broadcast!(-, resp, resp, m) # don't have to unshift, since we normalize later
+   for k in 1:n_clust
+      resp[:,k] = gmm.weights[k]*exp(resp[:,k]) 
+   end
+   ll = (sum(m) + sum(log(sum(resp,2))))/T(n_ex)
 
    # Baye's rule to normalize responsibilities
    broadcast!(/, resp, resp, sum(resp, 2))
@@ -101,10 +105,6 @@ function em_step!{T,CM<:DiagCovMat}(
       end
    end
 
-   # return log-likelihood
-   # here logpdf is just used as a work array to store resp before
-   # Baye's normalization
-   ll = reshape(sum(log(sum(logpdf, 2)), 1)/T(n_ex), 1)[1]
    return ll
 end
 
@@ -120,19 +120,23 @@ function em_step!{T,CM<:FullCovMat}(
    cov_logdet = map(cm->logdet(cm.chol), gmm.covs) # logdet(Sigma)
 
    wrk = Array{T}(n_dim, n_ex) # used for storing (X-mean)
-   logpdf = Array{T}(n_ex, n_clust)  # log p(y_i | mean_k, Sigma_k)
    resp = Array{T}(n_ex, n_clust)    # responsibility of component j for example i
    for k in 1:n_clust
       broadcast!(-,wrk,X.',gmm.means[k])     # (x-mean)
       wrk = gmm.covs[k].chol[:L] \ wrk       # R^{-T}*(x-mean)
       wrk .*= wrk                            # (x-mean)^T*prec*(x-mean)
-      logpdf[:,k] = -T(0.5)*sum(wrk, 1) - T(0.5)*cov_logdet[k] -
-         T(n_dim*0.5)*log(2*pi)
-      resp[:,k] = gmm.weights[k]*exp(logpdf[:,k])
+      resp[:,k] = -T(0.5)*sum(wrk, 1) - T(0.5)*cov_logdet[k] -
+         T(n_dim*0.5)*log(2*pi) # this is just log(Normal) for now
    end
-
-   logpdf = copy(resp) # will use later for log-likelihood
-
+   
+   # log-sum-exp trick
+   m = maximum(resp,2)
+   broadcast!(-, resp, resp, m) # don't have to unshift, since we normalize later
+   for k in 1:n_clust
+      resp[:,k] = gmm.weights[k]*exp(resp[:,k]) 
+   end
+   ll = (sum(m) + sum(log(sum(resp,2))))/T(n_ex)
+    
    # Baye's rule to normalize responsibilities
    broadcast!(/, resp, resp, sum(resp, 2))
    
@@ -180,10 +184,6 @@ function em_step!{T,CM<:FullCovMat}(
       end
    end
 
-   # return log-likelihood
-   # here logpdf is just used as a work array to store resp before
-   # Baye's normalization
-   ll = reshape(sum(log(sum(logpdf, 2)), 1)/T(n_ex), 1)[1]
    return ll
 end
 
@@ -200,17 +200,22 @@ function compute_ll{T,CM<:DiagCovMat}(
    cov_det = map(cm->prod(cm.diag), gmm.covs) # det(Sigma)
 
    wrk = Array{T}(n_ex, n_dim) # used for storing (X-mean)
-   logpdf = Array{T}(n_ex, n_clust)  # log p(y_i | mean_k, Sigma_k)
+   resp = Array{T}(n_ex, n_clust)    # responsibility of component j for example i
    for k in 1:n_clust
       broadcast!(-,wrk,X,gmm.means[k].')     # (x-mean)
       broadcast!(.*,wrk,wrk.*wrk, prec[k].') # (x-mean)^T*prec*(x-mean)
-      logpdf[:,k] = -T(0.5)*sum(wrk, 2) - T(0.5)*log(cov_det[k]) -
+      resp[:,k] = -T(0.5)*sum(wrk, 2) - T(0.5)*log(cov_det[k]) -
          T(n_dim*0.5)*log(2*pi)
-      logpdf[:,k] = gmm.weights[k]*exp(logpdf[:,k]) # no longer logpdf
    end
 
-   # return log-likelihood
-   ll = reshape(sum(log(sum(logpdf, 2)), 1)/T(n_ex), 1)[1]
+   # log-sum-exp trick
+   m = maximum(resp,2)
+   broadcast!(-, resp, resp, m) # don't have to unshift, since we normalize later
+   for k in 1:n_clust
+      resp[:,k] = gmm.weights[k]*exp(resp[:,k]) 
+   end
+   ll = (sum(m) + sum(log(sum(resp,2))))/T(n_ex)
+
    return ll
 end
 
@@ -224,18 +229,23 @@ function compute_ll{T,CM<:FullCovMat}(
    cov_logdet = map(cm->logdet(cm.chol), gmm.covs) # logdet(Sigma)
 
    wrk = Array{T}(n_dim, n_ex) # used for storing (X-mean)
-   logpdf = Array{T}(n_ex, n_clust)  # log p(y_i | mean_k, Sigma_k)
+   resp = Array{T}(n_ex, n_clust)    # responsibility of component j for example i
    for k in 1:n_clust
       broadcast!(-,wrk,X.',gmm.means[k])     # (x-mean)
       wrk = gmm.covs[k].chol[:L] \ wrk       # R^{-T}*(x-mean)
       wrk .*= wrk                            # (x-mean)^T*prec*(x-mean)
-      logpdf[:,k] = -T(0.5)*sum(wrk, 1) - T(0.5)*cov_logdet[k] -
-         T(n_dim*0.5)*log(2*pi)
-      logpdf[:,k] = gmm.weights[k]*exp(logpdf[:,k]) # no longer logpdf
+      resp[:,k] = -T(0.5)*sum(wrk, 1) - T(0.5)*cov_logdet[k] -
+         T(n_dim*0.5)*log(2*pi) # this is just log(Normal) for now
    end
    
-   # return log-likelihood
-   ll = reshape(sum(log(sum(logpdf, 2)), 1)/T(n_ex), 1)[1]
+   # log-sum-exp trick
+   m = maximum(resp,2)
+   broadcast!(-, resp, resp, m) # don't have to unshift, since we normalize later
+   for k in 1:n_clust
+      resp[:,k] = gmm.weights[k]*exp(resp[:,k]) 
+   end
+   ll = (sum(m) + sum(log(sum(resp,2))))/T(n_ex)
+ 
    return ll
 end
 

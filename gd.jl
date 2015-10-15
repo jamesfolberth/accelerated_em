@@ -1,7 +1,6 @@
 
 using Base.LinAlg.BLAS: ger!
 
-#TODO: Verify that gradients are correct with Stephen's code
 #TODO: gd_step!, compute_grad for DiagCovMat
 
 ## GMM - simple GD ##
@@ -189,7 +188,6 @@ function compute_grad{T,CM<:FullCovMat}(
 
    wrk = Array{T}(n_dim, n_ex) # used for storing R^{-T}(X-mean)
    xmmean = Array{Array{T,2},1}(n_clust) # storing (X-mean) for later use
-   logpdf = Array{T}(n_ex, n_clust)  # log p(x_i | mean_k, Sigma_k)
    resp = Array{T}(n_ex, n_clust)    # responsibility of component j for example i
    
    # some initialization
@@ -202,15 +200,19 @@ function compute_grad{T,CM<:FullCovMat}(
       broadcast!(-,xmmean[k],X.',gmm.means[k]) # (x-mean)
       wrk = gmm.covs[k].chol[:L] \ xmmean[k]   # R^{-T}*(x-mean)
       wrk .*= wrk                              # (x-mean)^T*prec*(x-mean)
-      logpdf[:,k] = -T(0.5)*sum(wrk, 1) - T(0.5)*cov_logdet[k] -
+      resp[:,k] = -T(0.5)*sum(wrk, 1) - T(0.5)*cov_logdet[k] -
          T(n_dim*0.5)*log(2*pi)
-      resp[:,k] = gmm.weights[k]*exp(logpdf[:,k])
    end
    
    # log-likelihood before gradient update
-   # note that resp isn't yet normalized
-   ll = reshape(sum(log(sum(resp, 2)), 1)/T(n_ex), 1)[1]
-
+   # log-sum-exp trick
+   m = maximum(resp,2)
+   broadcast!(-, resp, resp, m) # don't have to unshift, since we normalize later
+   for k in 1:n_clust
+      resp[:,k] = gmm.weights[k]*exp(resp[:,k]) 
+   end
+   ll = (sum(m) + sum(log(sum(resp,2))))/T(n_ex)
+ 
    # Baye's rule to normalize responsibilities
    broadcast!(/, resp, resp, sum(resp, 2))
    
