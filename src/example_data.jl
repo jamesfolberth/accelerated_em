@@ -5,7 +5,6 @@ Routines to generate some simple example data.
 module example_data
 
 import Distributions
-import gmm
 
 """
 Draw N samples from a fixed 2d mixture
@@ -127,15 +126,40 @@ function dist_nd_1(n::Integer, K::Integer, N::Integer;
          println("    weight:     $(mix[k])")
 
          println("    mean:")
-         gmm.pretty_print_vector(mean[:,k], indent_level=6)
+         pretty_print_vector(mean[:,k], indent_level=6)
 
          println("    cov (full):")
-         gmm.pretty_print_matrix(covs[k], indent_level=6)
+         pretty_print_matrix(covs[k], indent_level=6)
 
       end
    end
 
    return X.', y
 end
+
+
+## Pretty printing ##
+function pretty_print_vector{T}(io::IO, x::AbstractArray{T}; indent_level::Integer=0)
+   for val in x
+      println(io, join([repeat(" ",indent_level), @sprintf "% 7.3f" val]))
+   end
+end
+#TODO: is there a way to clean this up?  Like python's dict unpacking with param'd types?
+#      one constraint is that we want to mimic the call to println which has io optional in front
+pretty_print_vector{T}(x::AbstractArray{T}; indent_level::Integer=0) = 
+   pretty_print_vector(STDOUT, x, indent_level=indent_level)
+
+function pretty_print_matrix{T}(io::IO, mat::AbstractArray{T,2}; indent_level::Integer=0)
+   for i in 1:size(mat, 1)
+      print(io, repeat(" ", indent_level))
+      for val in mat[i,:]
+         print(io, @sprintf "% 7.3f  " val)
+      end
+      println(io,"")
+   end
+end
+pretty_print_matrix{T}(mat::AbstractArray{T,2}; indent_level::Integer=0) = 
+   pretty_print_matrix(STDOUT, mat, indent_level=indent_level)
+
 
 end
