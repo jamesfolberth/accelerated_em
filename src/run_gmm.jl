@@ -1,39 +1,15 @@
-"""
-This module has a few types of GMM and will eventually have a few different
-algorithms for training them.  This is totally experimental!
-
-There are other GMM modules in Julia:
-   https://github.com/davidavdav/GaussianMixtures.jl
-   https://github.com/lindahua/MixtureModels.jl
-"""
-
-#TODO visualize GMM somehow or some other metric for fit
-#TODO Make sure the new typing system works like it should
-#TODO How does documentation work?
-#TODO unit tests would be nice
-
-module gmm
-
 #XXX
 #srand(2718218)
 
-# these are just for plotting
-using PyCall
-using PyPlot #using: brings names into current NS; import doesn't
+using PyPlot
 
-
-# local files
-include("gmm/types.jl")
-include("gmm/em.jl")
-include("gmm/gd.jl")
-include("gmm/utils.jl")
+using EMAccel
+using example_data
 
 include("utils.jl")
-include("example_data.jl")
 
 
 ## GMM development things ##
-# {{{
 function run_2d()
 
    X, y = example_data.dist_2d_1(1000)
@@ -87,7 +63,7 @@ end
 
 function run_compare_nd()
 
-   n = 2
+   n = 3
    k = 4
    N = 5000
    X, y = example_data.dist_nd_1(n, k, N, T=Float64, print=true)
@@ -198,7 +174,6 @@ function run_grad_check()
 # }}} 
 end
 
-# }}}
 
 # GMM
 #run_2d()
@@ -207,4 +182,4 @@ run_compare_nd()
 #@time run_compare_nd()
 #run_grad_check()
 
-end
+#end

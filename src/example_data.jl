@@ -6,6 +6,8 @@ module example_data
 
 import Distributions
 
+export dist_2d_1, dist_nd_1 
+
 """
 Draw N samples from a fixed 2d mixture
 

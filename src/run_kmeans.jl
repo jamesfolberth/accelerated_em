@@ -1,13 +1,3 @@
-"""
-This module has an implementation of k-means with a few different training methods.
-This is totally experimental!
-
-There are other k-means implementations in Julia:
-https://github.com/JuliaStats/Clustering.jl
-"""
-
-module kmeans
-
 #XXX
 #srand(2718218)
 seed = rand(1:99999999)
@@ -15,24 +5,13 @@ seed = rand(1:99999999)
 println("seed = $(seed)")
 srand(seed)
 
-# these are just for plotting
-using PyCall
-using PyPlot #using: brings names into current NS; import doesn't
-@pyimport matplotlib.patches as mpatches
+using PyPlot 
 
-# some real data
+using EMAccel
+using example_data
 import MiscData.Census1990
 
-
-# local files
-include("kmeans/types.jl")
-include("kmeans/em.jl")
-include("kmeans/gd.jl")
-include("kmeans/utils.jl")
-
 include("utils.jl")
-include("example_data.jl")
-
 
 ## KMeans development things ##
 # {{{
@@ -149,14 +128,14 @@ function run_census_kmeans()
    km3.trained = true
    y_pred3 = soft_classify(km3, X)
 
+   return
 end
 
 # }}}
 
 # KMeans
-#run_kmeans_nd()
+run_kmeans_nd()
 
 # real data
-run_census_kmeans()
+#run_census_kmeans()
 
-end

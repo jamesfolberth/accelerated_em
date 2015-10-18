@@ -81,6 +81,5 @@ function plot_means{T}(km::KMeans{T})
 
 end
 
-
-
 # }}}
+
