@@ -8,7 +8,7 @@ srand(seed)
 using PyPlot 
 
 using EMAccel
-using example_data
+import MiscData.RandCluster
 import MiscData.Census1990
 
 include("utils.jl")
@@ -20,7 +20,7 @@ function run_kmeans_nd()
    n = 3
    k = 8
    N = 50000
-   X, y = example_data.dist_nd_1(n, k, N, T=Float64)
+   X, y = RandCluster.dist_nd(n, k, N, T=Float64)
   
    if n == 2
       figure(1)

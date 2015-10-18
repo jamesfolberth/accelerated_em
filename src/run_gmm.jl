@@ -4,45 +4,24 @@
 using PyPlot
 
 using EMAccel
-using example_data
+import MiscData.RandCluster
 
 include("utils.jl")
 
 
 ## GMM development things ##
-function run_2d()
-
-   X, y = example_data.dist_2d_1(1000)
-   clf()
-   plot_data(X, y)
-
-   #gmm = GMM(X; K=3, cov_type=:diag, mean_init_method=:kmeans)
-   gmm = GMM(X; K=3, cov_type=:full, mean_init_method=:kmeans)
-
-   println(typeof(gmm))
-
-   em!(gmm, X, print=true)
-   #gd!(gmm, X, print=true, n_em_iter=4)
-
-   println(gmm)
-
-   plot_gmm_contours(gmm,
-      [1.1*minimum(X[:,1]), 1.1*maximum(X[:,1]),
-       1.1*minimum(X[:,2]), 1.1*maximum(X[:,2])])
-
-end
-
 function run_nd()
 
    n = 2
    k = 4
    N = 5000
-   X, y = example_data.dist_nd_1(n, k, N, T=Float64, print=true)
+   X, y = RandCluster.dist_nd(n, k, N, T=Float64, print=true)
    
    if n == 2
       clf()
       plot_data([X[:,1] X[:,2]], y)
    end 
+
    gmm = GMM(X; K=k, cov_type=:diag, mean_init_method=:kmeans)
    #gmm = GMM(X; K=k, cov_type=:full, mean_init_method=:kmeans)
 
@@ -66,7 +45,7 @@ function run_compare_nd()
    n = 3
    k = 4
    N = 5000
-   X, y = example_data.dist_nd_1(n, k, N, T=Float64, print=true)
+   X, y = RandCluster.dist_nd(n, k, N, T=Float64, print=true)
    
    if n == 2
       figure(1)
@@ -116,7 +95,7 @@ function run_grad_check()
    n = 2
    k = 4
    N = 500
-   X, y = example_data.dist_nd_1(n, k, N, T=Float64, print=true)
+   X, y = RandCluster.dist_nd(n, k, N, T=Float64, print=true)
    
    gmm = GMM(X; K=k, cov_type=:full, mean_init_method=:kmeans)
    
@@ -180,6 +159,7 @@ end
 #run_nd()
 run_compare_nd()
 #@time run_compare_nd()
+
 #run_grad_check()
 
 #end
