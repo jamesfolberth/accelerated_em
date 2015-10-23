@@ -8,7 +8,7 @@ function gd!{T}(
       km::KMeans{T},
       X::Array{T,2};
       n_iter::Int=25,
-      n_em_iter::Int=2,
+      n_em_iter::Int=0,
       ll_tol::T=1e-3,
       print=false)
    
@@ -18,11 +18,14 @@ function gd!{T}(
    prev_ll = -T(Inf)
    for it in 1:n_em_iter
       prev_ll = em_step!(km, X)
-      println("em!: log-likelihood = $(prev_ll)")
+      if print
+         println("em!: log-likelihood = $(prev_ll)")
+      end
    end
 
    ll_diff = T(0)
    bt_step = T(1)
+   it_count = 0
    for it in 1:n_iter
       # naive step size
       #ll = gd_step!(km, X, step_size=:em_step)
@@ -37,6 +40,8 @@ function gd!{T}(
          # hacky way to attempt to grow step size
          ll, bt_step = bt_ls_step!(km, X, alpha=8.0*bt_step)
       end
+      
+      it_count += 1
 
       if print
          println("gd!: log-likelihood = $(ll)")
@@ -58,7 +63,7 @@ function gd!{T}(
       km.trained = true
    end
 
-   return km
+   return it_count
 end
 
 
@@ -158,7 +163,7 @@ function nest2!{T}(
       km::KMeans{T},
       X::Array{T,2};
       n_iter::Int=25,
-      n_em_iter::Int=2,
+      n_em_iter::Int=0,
       ll_tol::T=1e-3,
       print=false)
    
@@ -168,7 +173,9 @@ function nest2!{T}(
    prev_ll = -T(Inf)
    for it in 1:n_em_iter
       prev_ll = em_step!(km, X)
-      println("em!: log-likelihood = $(prev_ll)")
+      if print
+         println("em!: log-likelihood = $(prev_ll)")
+      end
    end
 
    nu = deepcopy(km)
@@ -176,6 +183,7 @@ function nest2!{T}(
 
    ll_diff = T(0)
    bt_step = T(1)
+   it_count = 0
    for it in 1:n_iter
       theta = T(2)/T(it+1)
       weighted_sum!(y, T(1)-theta, km, theta, nu)
@@ -194,6 +202,8 @@ function nest2!{T}(
       #end
 
       weighted_sum!(km, T(1)-theta, km, theta, nu)
+   
+      it_count += 1
 
       if print
          println("nest2!: log-likelihood = $(ll)")
@@ -215,7 +225,7 @@ function nest2!{T}(
       km.trained = true
    end
 
-   return km
+   return it_count
 end
 
 

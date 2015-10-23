@@ -81,6 +81,17 @@ end
 
 
 ## make KMeans print a bit prettier
+## Pretty printing ##
+function pretty_print_vector{T}(io::IO, x::AbstractArray{T}; indent_level::Integer=0)
+   for val in x
+      println(io, join([repeat(" ",indent_level), @sprintf "% 7.3f" val]))
+   end
+end
+#TODO: is there a way to clean this up?  Like python's dict unpacking with param'd types?
+#      one constraint is that we want to mimic the call to println which has io optional in front
+pretty_print_vector{T}(x::AbstractArray{T}; indent_level::Integer=0) = 
+   pretty_print_vector(STDOUT, x, indent_level=indent_level)
+
 function Base.show{T}(io::IO, kmeans::KMeans{T})
    println(io, string("K-means model in $(kmeans.n_dim) ",
       "dimensions with $(kmeans.n_clust) clusters."))

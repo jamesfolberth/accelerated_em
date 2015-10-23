@@ -56,6 +56,7 @@ function hard_em!{T}(
 
    km.trained = true
    
+   return n_it
 end
 
 """
@@ -72,8 +73,11 @@ function em!{T}(
       
    prev_ll = -T(Inf)
    ll_diff = T(0.0)
+   it_count = 0
    for it in 1:n_iter
+      #println("print some stuff")
       ll = em_step!(km, X)
+      it_count += 1
 
       if print
          println("em!: log-likelihood = $(ll)")
@@ -95,8 +99,8 @@ function em!{T}(
    else
       km.trained = true
    end
-
-   return km
+   
+   return it_count
 end
 
 """

@@ -3,7 +3,9 @@
 
 using PyPlot
 
-using EMAccel
+#using EMAccel
+reload("EMAccel")
+import EMAccel
 import MiscData.RandCluster
 
 include("utils.jl")
@@ -22,18 +24,18 @@ function run_nd()
       plot_data([X[:,1] X[:,2]], y)
    end 
 
-   gmm = GMM(X; K=k, cov_type=:diag, mean_init_method=:kmeans)
-   #gmm = GMM(X; K=k, cov_type=:full, mean_init_method=:kmeans)
+   gmm = EMAccel.GMM(X; K=k, cov_type=:diag, mean_init_method=:kmeans)
+   #gmm = EMAccel.GMM(X; K=k, cov_type=:full, mean_init_method=:kmeans)
 
-   em!(gmm, X, print=true)
-   #em!(gmm, X, print=true, ll_tol=-1.0, n_iter=100) # run forever...
-   #gd!(gmm, X, print=true, n_em_iter=1)
+   EMAccel.em!(gmm, X, print=true)
+   #EMAccel.em!(gmm, X, print=true, ll_tol=-1.0, n_iter=100) # run forever...
+   #EMAccel.gd!(gmm, X, print=true, n_em_iter=1)
    gmm.trained = true # force it, even if training fails
    
    println(gmm) 
    
    if n == 2
-      plot_gmm_contours(gmm,
+      EMAccel.plot_gmm_contours(gmm,
          [1.1*minimum(X[:,1]), 1.1*maximum(X[:,1]),
          1.1*minimum(X[:,2]), 1.1*maximum(X[:,2])])
    end
@@ -56,8 +58,8 @@ function run_compare_nd()
       plot_data([X[:,1] X[:,2]], y)
    end
 
-   gmm1 = GMM(X; K=k, cov_type=:full, mean_init_method=:kmeans)
-   #gmm2 = GMM(X; K=k, cov_type=:full, mean_init_method=:kmeans)
+   gmm1 = EMAccel.GMM(X; K=k, cov_type=:full, mean_init_method=:kmeans)
+   #gmm2 = EMAccel.GMM(X; K=k, cov_type=:full, mean_init_method=:kmeans)
    gmm2 = deepcopy(gmm1)
    
    # force it!
@@ -65,10 +67,10 @@ function run_compare_nd()
    gmm2.trained = true
    
    println("EM only")
-   em!(gmm1, X, print=true, n_iter = 500)
+   EMAccel.em!(gmm1, X, print=true, n_iter = 500)
    
    println("GD\n")
-   gd!(gmm2, X, print=true, n_em_iter=2, n_iter=500)
+   EMAccel.gd!(gmm2, X, print=true, n_em_iter=2, n_iter=500)
 
    #println(gmm1)
    #println(gmm2)
@@ -76,13 +78,13 @@ function run_compare_nd()
    if n == 2
       figure(1)
       title("EM")
-      plot_gmm_contours(gmm1,
+      EMAccel.plot_gmm_contours(gmm1,
          [1.1*minimum(X[:,1]), 1.1*maximum(X[:,1]),
           1.1*minimum(X[:,2]), 1.1*maximum(X[:,2])])
 
       figure(2)
       title("GD")
-      plot_gmm_contours(gmm2,
+      EMAccel.plot_gmm_contours(gmm2,
          [1.1*minimum(X[:,1]), 1.1*maximum(X[:,1]),
           1.1*minimum(X[:,2]), 1.1*maximum(X[:,2])])
    end
@@ -97,7 +99,7 @@ function run_grad_check()
    N = 500
    X, y = RandCluster.dist_nd(n, k, N, T=Float64, print=true)
    
-   gmm = GMM(X; K=k, cov_type=:full, mean_init_method=:kmeans)
+   gmm = EMAccel.GMM(X; K=k, cov_type=:full, mean_init_method=:kmeans)
    
    for i in 1:0
       println(em_step!(gmm, X))
@@ -155,7 +157,6 @@ end
 
 
 # GMM
-#run_2d()
 #run_nd()
 run_compare_nd()
 #@time run_compare_nd()

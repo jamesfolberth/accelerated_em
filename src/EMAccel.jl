@@ -16,6 +16,8 @@ There are other k-means implementations in Julia:
 https://github.com/JuliaStats/Clustering.jl
 """
 
+#TODO: make KMeansAccel and GMMAccel submodules?
+
 module EMAccel
 
 using PyCall
