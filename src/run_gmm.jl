@@ -91,76 +91,9 @@ function run_compare_nd()
 
 end
 
-#TODO make test dir?
-function run_grad_check()
-# {{{
-   n = 2
-   k = 4
-   N = 500
-   X, y = RandCluster.dist_nd(n, k, N, T=Float64, print=true)
-   
-   gmm = EMAccel.GMM(X; K=k, cov_type=:full, mean_init_method=:kmeans)
-   
-   for i in 1:0
-      println(em_step!(gmm, X))
-   end
-
-   ## wk ##
-   #function f(wk, gmm)
-   #   gmm._wk[:] = wk[:]
-   #   gmm.weights[:] = exp(wk)
-   #   gmm.weights /= sum(gmm.weights)
-   #   return compute_grad(gmm,X)[1]
-   #end
-
-   #function g(wk, gmm)
-   #   gmm._wk[:] = wk[:]
-   #   gmm.weights[:] = exp(wk)
-   #   gmm.weights /= sum(gmm.weights)
-   #   return compute_grad(gmm,X)[2]
-   #end
-   #grad_test.taylor_test(_x->f(_x,gmm), _x->g(_x,gmm),log(gmm.weights))
-  
-
-   ## means ##
-   #ind = 1
-   #function f(m, gmm)
-   #   gmm.means[ind][:] = m[:]
-   #   return compute_grad(gmm,X)[1]
-   #end
-
-   #function g(m, gmm)
-   #   gmm.means[ind][:] = m[:]
-   #   return compute_grad(gmm,X)[3][ind]
-   #end
-   #grad_test.taylor_test(_x->f(_x,gmm), _x->g(_x,gmm),gmm.means[ind])
-
-
-   ## covs ##
-   ind = 1
-   # full
-   function f(R, gmm)
-      gmm.covs[ind].cov = R.'*R
-      gmm.covs[ind].chol = cholfact(gmm.covs[ind].cov)
-      return compute_grad(gmm,X)[1]
-   end
-
-   function g(R, gmm)
-      gmm.covs[ind].cov = R.'*R
-      gmm.covs[ind].chol = cholfact(gmm.covs[ind].cov)
-      return compute_grad(gmm,X)[4][ind]
-   end
-   grad_test.taylor_test(_x->f(_x,gmm), _x->g(_x,gmm),full(gmm.covs[ind].chol[:U]))
-
-# }}} 
-end
-
-
 # GMM
 #run_nd()
 run_compare_nd()
 #@time run_compare_nd()
-
-#run_grad_check()
 
 #end
