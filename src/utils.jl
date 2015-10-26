@@ -30,6 +30,27 @@ function cluster_dist{T<:Real,S<:Integer}(
 end
 
 
+# standardize data so that each dimension has mean 0 and variance 0
+function standard_scaler!{T<:Real}(X::Array{T,2})
+   
+   m = mean(X,1)
+   s = stdm(X,m,1)
+   ep = 1e2*eps(mean(m))
+   s[s .< ep] = T(0) # if std dev is too small
+   broadcast!(-, X, X, m)
+   broadcast!(/, X, X, s)
+   
+   return m, s
+end
+
+function standard_scaler{T<:Real}(X::Array{T,2})
+   
+   Xc = copy(X)
+   m, s = standard_scaler!(Xc)
+   return Xc, m, s
+end
+
+
 ## Plotting ##
 function plot_data(X, y)
 

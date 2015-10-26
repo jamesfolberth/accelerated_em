@@ -11,7 +11,7 @@ srand(seed)
 using PyPlot 
 
 reload("EMAccel")
-using EMAccel
+import EMAccel
 import MiscData
 
 include("utils.jl")
@@ -45,6 +45,7 @@ end
 
 # performance profile based on number of iterations (because it's easy)
 function iter_perf_prof()
+# {{{
 
    n_samples = 10
    MDlist = (MiscData.Iris, MiscData.LIBRAS, MiscData.CMC)
@@ -79,9 +80,12 @@ function iter_perf_prof()
 
    return
 end
+# }}}
+
 
 # performance profile based on runtime
 function time_perf_prof()
+# {{{
 
    n_samples = 10
    MDlist = (MiscData.Iris, MiscData.LIBRAS, MiscData.CMC)
@@ -118,15 +122,103 @@ function time_perf_prof()
 
    # build a performance profile plot
    perf_prof_skeleton(perf_data, collect(linspace(1,10)))
+   axis([0.9, 10.1, -0.1, 1.1])
    
    legend(["hard_em!", "em!", "gd!", "nest2!"], loc="lower right")
    title("Performance profile: runtime")
 
    return
 end
+# }}}
+
+
+# performance profile based on negative log-likelihood
+function nll_perf_prof()
+# {{{
+
+   n_samples = 10
+   MDlist = (MiscData.Iris, MiscData.LIBRAS, MiscData.CMC)
+   solvers = (EMAccel.hard_em!, EMAccel.em!, EMAccel.gd!, EMAccel.nest2!)
+
+   perf_data = zeros(length(MDlist), length(solvers))
+
+   # do a bunch of solves
+   for ns in 1:n_samples
+      println("sample $(ns) of $(n_samples)")
+      for (p,MDsub) in enumerate(MDlist)
+         X,y = MDsub.read_array()
+         k = length(unique(y))
+  
+         km = EMAccel.KMeans(X; K=k, mean_init_method=:kmpp)
+
+         for (s,solver) in enumerate(solvers)
+            km_copy = deepcopy(km)
+            solver(km_copy, X, n_iter=100)
+            ll = EMAccel.compute_ll(km_copy, X)
+
+            perf_data[p,s] -= ll
+         end
+      end
+   end 
+
+   # build a performance profile plot
+   perf_prof_skeleton(perf_data, collect(linspace(1,1.5)))
+   axis([0.9, 1.6, -0.1, 1.1])
+   
+   legend(["hard_em!", "em!", "gd!", "nest2!"], loc="lower right")
+   title("Performance profile: negative log-likelihood")
+
+   return
+end
+# }}}
+
+# performance profile based on sum of intra-cluster distances
+function dist_perf_prof()
+# {{{
+
+   n_samples = 10
+   MDlist = (MiscData.Iris, MiscData.LIBRAS, MiscData.CMC)
+   solvers = (EMAccel.hard_em!, EMAccel.em!, EMAccel.gd!, EMAccel.nest2!)
+   clusters = (EMAccel.hard_classify, EMAccel.soft_classify, EMAccel.soft_classify, EMAccel.soft_classify)
+
+   perf_data = zeros(length(MDlist), length(solvers))
+
+   # do a bunch of solves
+   for ns in 1:n_samples
+      println("sample $(ns) of $(n_samples)")
+      for (p,MDsub) in enumerate(MDlist)
+         X,y = MDsub.read_array()
+         k = length(unique(y))
+  
+         km = EMAccel.KMeans(X; K=k, mean_init_method=:kmpp)
+
+         for (s,solver) in enumerate(solvers)
+            km_copy = deepcopy(km)
+            solver(km_copy, X, n_iter=100)
+            y_pred = clusters[s](km_copy, X)
+            dist = cluster_dist(km_copy, X, y_pred)
+
+            perf_data[p,s] += sum(dist)
+         end
+      end
+   end 
+
+   # build a performance profile plot
+   perf_prof_skeleton(perf_data, collect(linspace(1,2.5)))
+   axis([0.9, 2.6, -0.1, 1.1])
+   
+   legend(["hard_em!", "em!", "gd!", "nest2!"], loc="lower right")
+   title("Performance profile: sum of intra-cluster distances")
+
+   return
+end
+# }}}
 
 
 
 # run stuff
 #iter_perf_prof()
 time_perf_prof()
+#nll_perf_prof()
+#dist_perf_prof()
+

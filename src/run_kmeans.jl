@@ -26,6 +26,7 @@ function run_kmeans_nd()
    k = 4
    N = 50000
    X, y = MiscData.RandCluster.dist_nd(n, k, N, T=Float64)
+   m,s = standard_scaler!(X)
   
    if n == 2
       figure(1)
@@ -115,6 +116,7 @@ function run_census_kmeans()
    N = 50000
    k = 12
    X = MiscData.Census1990.read_array(nrows=N)
+   m,s = standard_scaler!(X)
    println("Census1990 (subsample) data loaded.")
   
    km = EMAccel.KMeans(X; K=k, mean_init_method=:kmpp)
@@ -152,7 +154,10 @@ function run_iris_kmeans()
    
    X, y = MiscData.Iris.read_array()
    k = length(unique(y)) # k=3
+   #k = 6
  
+   m,s = standard_scaler!(X)
+   
    km = EMAccel.KMeans(X; K=k, mean_init_method=:kmpp)
    km2 = deepcopy(km)
    km3 = deepcopy(km)
@@ -188,11 +193,13 @@ function run_libras_kmeans()
    X, y = MiscData.LIBRAS.read_array()
    k = length(unique(y)) # k=15
   
+   m,s = standard_scaler!(X)
+   
    km = EMAccel.KMeans(X; K=k, mean_init_method=:kmpp)
    km2 = deepcopy(km)
    km3 = deepcopy(km)
    
-   EMAccel.em!(km, X, print=true)
+   EMAccel.em!(km, X, print=true, n_iter=100)
    km.trained = true
    y_pred = EMAccel.soft_classify(km, X)
    dist = cluster_dist(km, X, y_pred)
@@ -222,7 +229,9 @@ function run_cmc_kmeans()
    
    X, y = MiscData.CMC.read_array()
    k = length(unique(y)) # k=3
-  
+   
+   m,s = standard_scaler!(X)
+
    km = EMAccel.KMeans(X; K=k, mean_init_method=:kmpp)
    km2 = deepcopy(km)
    km3 = deepcopy(km)
@@ -259,7 +268,7 @@ end
 
 # real data
 #run_census_kmeans()
-#run_iris_kmeans()
+run_iris_kmeans()
 #run_libras_kmeans()
-run_cmc_kmeans()
+#run_cmc_kmeans()
 
