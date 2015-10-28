@@ -246,3 +246,39 @@ function compute_ll{T,CM<:FullCovMat}(
    return ll
 end
 
+
+"""
+Compute log-likelihood using covs[k.]R instead of covs[k].chol
+"""
+function compute_ll_R{T,CM<:FullCovMat}(
+      gmm::GMM{T,CM},
+      X::Array{T,2})
+
+   n_dim, n_clust, n_ex = data_sanity(gmm, X)
+   
+   # this is similar to E step
+   #cov_logdet = map(cm->logdet(cm.chol), gmm.covs) # logdet(Sigma)
+   cov_logdet = map(cm->2*logdet(cm.R), gmm.covs) # logdet(Sigma)
+
+   wrk = Array{T}(n_dim, n_ex) # used for storing (X-mean)
+   resp = Array{T}(n_ex, n_clust)    # responsibility of component j for example i
+   for k in 1:n_clust
+      broadcast!(-,wrk,X.',gmm.means[k])     # (x-mean)
+      #wrk = gmm.covs[k].chol[:L] \ wrk       # R^{-T}*(x-mean)
+      wrk = gmm.covs[k].R.' \ wrk            # R^{-T}*(x-mean)
+      wrk .*= wrk                            # (x-mean)^T*prec*(x-mean)
+      resp[:,k] = -T(0.5)*sum(wrk, 1) - T(0.5)*cov_logdet[k] -
+         T(n_dim*0.5)*log(2*pi) # this is just log(Normal) for now
+   end
+   
+   # log-sum-exp trick
+   m = maximum(resp,2)
+   broadcast!(-, resp, resp, m) # don't have to unshift, since we normalize later
+   for k in 1:n_clust
+      resp[:,k] = gmm.weights[k]*exp(resp[:,k]) 
+   end
+   ll = (sum(m) + sum(log(sum(resp,2))))/T(n_ex)
+ 
+   return ll
+end
+

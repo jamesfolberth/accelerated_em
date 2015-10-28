@@ -24,6 +24,13 @@ function gd!{T,CM<:CovMat}(
       println("em!: log-likelihood = $(prev_ll)")
    end
 
+   # update factorization cov = R'*R, which will hold non-triangular updates
+   if CM <: FullCovMat
+      for k in 1:n_clust
+         copy!(gmm.covs[k].R, gmm.covs[k].chol[:U])
+      end
+   end
+
    ll_diff = T(0)
    bt_step = T(1)
    for it in 1:n_iter
@@ -51,7 +58,15 @@ function gd!{T,CM<:CovMat}(
       end
       prev_ll = ll
    end
-   
+
+   # update Cholesky factors
+   if CM <: FullCovMat
+      for k in 1:n_clust
+         gmm.covs[k].chol = cholfact(gmm.covs[k].R*gmm.covs[k].R.')
+      end
+   end
+
+
    if ll_diff > ll_tol
       warn("Log-likelihood has not reached convergence criterion of $(ll_tol) in $(n_iter) iterations.  GD may not have converged!")
 
@@ -92,9 +107,10 @@ function gd_step!{T,CM<:FullCovMat}(
       gmm.means[k] += step_size*mean_grad[k]
    
       # TODO how to do this?
-      R = gmm.covs[k].chol[:U] + step_size*chol_grad[k]
-      gmm.covs[k].cov = R.'*R
-      gmm.covs[k].chol = cholfact(gmm.covs[k].cov)
+      gmm.covs[k].R += step_size*chol_grad[k]
+      #R = gmm.covs[k].chol[:U] + step_size*chol_grad[k]
+      #gmm.covs[k].cov = R.'*R
+      #gmm.covs[k].chol = cholfact(gmm.covs[k].cov)
    end
 
    gmm.weights[:] = exp(gmm._wk[:])
@@ -123,9 +139,10 @@ function bt_ls_step{T,CM<:FullCovMat}(
          gmm.means[k] += alpha*mean_grad[k]
       
          # TODO how to do this?
-         R = gmm.covs[k].chol[:U] + alpha*chol_grad[k]
-         gmm.covs[k].cov = R.'*R
-         gmm.covs[k].chol = cholfact(gmm.covs[k].cov)
+         gmm.covs[k].R += alpha*chol_grad[k]
+         #R = gmm.covs[k].chol[:U] + alpha*chol_grad[k]
+         #gmm.covs[k].cov = R.'*R
+         #gmm.covs[k].chol = cholfact(gmm.covs[k].cov)
       end
 
       gmm.weights[:] = exp(gmm._wk[:])
@@ -138,7 +155,7 @@ function bt_ls_step{T,CM<:FullCovMat}(
    alpha_k = alpha
    _gmm = deepcopy(gmm)
    step_gmm!(_gmm, wk_grad, mean_grad, chol_grad, alpha_k)
-   _ll = compute_ll(_gmm, X)
+   _ll = compute_ll_R(_gmm, X)
 
    grad_ip = T(0)
    for k in 1:n_clust
@@ -153,7 +170,7 @@ function bt_ls_step{T,CM<:FullCovMat}(
 
       _gmm = deepcopy(gmm)
       step_gmm!(_gmm, wk_grad, mean_grad, chol_grad, alpha_k)
-      _ll = compute_ll(_gmm, X)
+      _ll = compute_ll_R(_gmm, X)
       #println("  alpha_k = $(alpha_k), _ll = $(_ll), diff = $(_ll-ll-c*alpha_k*grad_ip)")
       
       if alpha_k < eps(ll)
@@ -178,6 +195,12 @@ function compute_grad{T,CM<:DiagCovMat}(
    error("Not implemented!")
 end
 
+"""
+Compute the gradient of a FullCovMat-based GMM
+
+Note that this will not use the Cholesky factorization, but will instead 
+use the factorization cov = R.'*R, in which R is not necessarily triangular.
+"""
 function compute_grad{T,CM<:FullCovMat}(
       gmm::GMM{T,CM},
       X::Array{T,2})
@@ -185,7 +208,8 @@ function compute_grad{T,CM<:FullCovMat}(
    n_dim, n_clust, n_ex = data_sanity(gmm, X)
 
    ## compute responsibilities ##
-   cov_logdet = map(cm->logdet(cm.chol), gmm.covs) # logdet(Sigma)
+   #cov_logdet = map(cm->logdet(cm.chol), gmm.covs) # logdet(Sigma)
+   cov_logdet = map(cm->2*logdet(cm.R), gmm.covs) # logdet(Sigma)
 
    wrk = Array{T}(n_dim, n_ex) # used for storing R^{-T}(X-mean)
    xmmean = Array{Array{T,2},1}(n_clust) # storing (X-mean) for later use
@@ -199,7 +223,8 @@ function compute_grad{T,CM<:FullCovMat}(
    # some heavy lifting
    for k in 1:n_clust
       broadcast!(-,xmmean[k],X.',gmm.means[k]) # (x-mean)
-      wrk = gmm.covs[k].chol[:L] \ xmmean[k]   # R^{-T}*(x-mean)
+      #wrk = gmm.covs[k].chol[:L] \ xmmean[k]   # R^{-T}*(x-mean)
+      wrk = gmm.covs[k].R.' \ xmmean[k]   # R^{-T}*(x-mean)
       wrk .*= wrk                              # (x-mean)^T*prec*(x-mean)
       resp[:,k] = -T(0.5)*sum(wrk, 1) - T(0.5)*cov_logdet[k] -
          T(n_dim*0.5)*log(2*pi)
@@ -231,7 +256,8 @@ function compute_grad{T,CM<:FullCovMat}(
    for k in 1:n_clust # some initialization
       mean_grad[k] = Array{T}(zeros(n_dim))
       chol_grad[k] = Array{T}(zeros(n_dim, n_dim))
-      chol_grad[k] -= rk[k]*inv(gmm.covs[k].chol[:L])
+      #chol_grad[k] -= rk[k]*inv(gmm.covs[k].chol[:L])
+      chol_grad[k] -= rk[k]*inv(gmm.covs[k].R.')
    end
    @inbounds for k in 1:n_clust
       outer_prod *= T(0)
@@ -241,10 +267,19 @@ function compute_grad{T,CM<:FullCovMat}(
          mean_grad[k] += resp[i,k]*xi
          ger!(resp[i,k], xi, xi, outer_prod) # op += r_{ik}*xi*xi^T
       end
-      mean_grad[k] = gmm.covs[k].chol \ mean_grad[k]
+
+      # using chol
+      #mean_grad[k] = gmm.covs[k].chol \ mean_grad[k]
+      ## due to symmetry of outer_prod and Sigma, we can use "left division"
+      #outer_prod = (gmm.covs[k].chol \ outer_prod).' # (xi*xi')*inv(Sigma) 
+      #chol_grad[k] += gmm.covs[k].chol[:L] \ outer_prod
+   
+      # using R
+      mean_grad[k] = gmm.covs[k].R \ (gmm.covs[k].R.' \ mean_grad[k])
       # due to symmetry of outer_prod and Sigma, we can use "left division"
-      outer_prod = (gmm.covs[k].chol \ outer_prod).' # (xi*xi')*inv(Sigma) 
-      chol_grad[k] += gmm.covs[k].chol[:L] \ outer_prod
+      # (xi*xi')*inv(Sigma)
+      outer_prod = (gmm.covs[k].R \ (gmm.covs[k].R.' \ outer_prod)).'
+      chol_grad[k] += gmm.covs[k].R.' \ outer_prod
    end
    
    return ll, weight_grad, mean_grad, chol_grad

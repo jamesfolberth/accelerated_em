@@ -14,8 +14,15 @@ end
 type FullCovMat{T} <: CovMat{T}
    cov::Array{T,2} # full covariance matrix
    chol::Cholesky{T,Array{T,2}} # Cholesky factorization type of cov
+   R::Array{T,2} # cov = R'*R (but not necessarily Cholesky; used for GD)
 end
-FullCovMat{T}(cov::Array{T,2}) = FullCovMat(cov, cholfact(cov))
+#FullCovMat{T}(cov::Array{T,2}) = FullCovMat(cov, cholfact(cov))
+FullCovMat{T}(cov::Array{T,2}) = FullCovMat(cov, cholfact(cov), cholfact(cov)[:U])
+
+function FullCovMat{T}(cov::Array{T,2})
+   chol = cholfact(cov)
+   return FullCovMat{T}(cov, chol, chol[:U])
+end
 
 type GMM{T,CM<:CovMat}
    n_dim::Integer               # dimensionality of data

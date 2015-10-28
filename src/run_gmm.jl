@@ -1,5 +1,11 @@
 #XXX
 #srand(2718218)
+seed = rand(1:99999999)
+seed = 74779269 # em uses ~20 iters
+println("seed = $(seed)")
+srand(seed)
+
+
 
 using PyPlot
 
@@ -17,7 +23,7 @@ function run_nd()
    n = 2
    k = 4
    N = 5000
-   X, y = RandCluster.dist_nd(n, k, N, T=Float64, print=true)
+   X, y = RandCluster.dist_nd(n, k, N, T=Float64, print=false)
    
    if n == 2
       clf()
@@ -47,7 +53,7 @@ function run_compare_nd()
    n = 3
    k = 4
    N = 5000
-   X, y = RandCluster.dist_nd(n, k, N, T=Float64, print=true)
+   X, y = RandCluster.dist_nd(n, k, N, T=Float64, print=false)
    
    if n == 2
       figure(1)
