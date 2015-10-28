@@ -179,7 +179,7 @@ function dist_perf_prof()
    n_samples = 10
    MDlist = (MiscData.Iris, MiscData.LIBRAS, MiscData.CMC)
    solvers = (EMAccel.hard_em!, EMAccel.em!, EMAccel.gd!, EMAccel.nest2!)
-   clusters = (EMAccel.hard_classify, EMAccel.soft_classify, EMAccel.soft_classify, EMAccel.soft_classify)
+   clusters = (EMAccel.hard_cluster, EMAccel.soft_cluster, EMAccel.soft_cluster, EMAccel.soft_cluster)
 
    perf_data = zeros(length(MDlist), length(solvers))
 
@@ -218,7 +218,7 @@ end
 
 # run stuff
 #iter_perf_prof()
-time_perf_prof()
-#nll_perf_prof()
+#time_perf_prof()
+nll_perf_prof()
 #dist_perf_prof()
 

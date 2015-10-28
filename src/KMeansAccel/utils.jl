@@ -14,9 +14,8 @@ function data_sanity{T}(km::KMeans{T}, X::Array{T,2})
    return n_dim, n_clust, n_ex 
 end
 
-#TODO: this should be hard_cluster/soft_cluster, not classify
 # make assignments
-function hard_classify{T}(km::KMeans{T}, X::Array{T,2})
+function hard_cluster{T}(km::KMeans{T}, X::Array{T,2})
    
    km.trained || throw("km should be trained before using it for classificaiton.")
    n_dim, n_clust, n_ex = data_sanity(km, X)
@@ -37,7 +36,7 @@ function hard_classify{T}(km::KMeans{T}, X::Array{T,2})
    return assignments
 end
 
-function soft_classify{T}(km::KMeans{T}, X::Array{T,2})
+function soft_cluster{T}(km::KMeans{T}, X::Array{T,2})
    
    km.trained || throw("km should be trained before using it for classificaiton.")
    n_dim, n_clust, n_ex = data_sanity(km, X)

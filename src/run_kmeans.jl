@@ -52,7 +52,7 @@ function run_kmeans_nd()
 
    EMAccel.em!(km, X, print=true, n_iter=100)
    km.trained = true
-   y_pred = EMAccel.soft_classify(km, X)
+   y_pred = EMAccel.soft_cluster(km, X)
    dist = cluster_dist(km, X, y_pred)
    println("Sum of intra-cluster distances = $(sum(dist))")
    println()
@@ -60,23 +60,23 @@ function run_kmeans_nd()
    ##em!(km2, X, print=true, ll_tol=0.5)
    #EMAccel.gd!(km2, X, n_em_iter=0, print=true, n_iter=100)
    #km2.trained = true
-   #y_pred2 = EMAccel.soft_classify(km2, X)
+   #y_pred2 = EMAccel.soft_cluster(km2, X)
    #println()
 
    #EMAccel.em!(km3, X, print=true, ll_tol=0.5)
    EMAccel.nest2!(km3, X, n_em_iter=0, print=true, n_iter=100)
    km3.trained = true
-   y_pred3 = EMAccel.soft_classify(km3, X)
+   y_pred3 = EMAccel.soft_cluster(km3, X)
    dist = cluster_dist(km, X, y_pred3)
    println("Sum of intra-cluster distances = $(sum(dist))")
  
    #EMAccel.em!(km, X, print=true)
    #km.trained = true
-   #y_pred1 = EMAccel.soft_classify(km, X)
+   #y_pred1 = EMAccel.soft_cluster(km, X)
    #println()
 
    ##hard_em!(km, X)
-   ##y_pred = hard_classify(km, X) 
+   ##y_pred = hard_cluster(km, X) 
  
    #EMAccel.em!(km2, X, print=true, ll_tol=0.5)
    ##EMAccel.gd!(km2, X, n_em_iter=2, print=true)
@@ -84,7 +84,7 @@ function run_kmeans_nd()
    ##EMAccel.nest2!(km, X, n_em_iter=2, print=true, ll_tol=1e-2)
    ##EMAccel.gd!(km, X, n_em_iter=0, print=true)
    #km2.trained = true
-   #y_pred2 = EMAccel.soft_classify(km2, X)
+   #y_pred2 = EMAccel.soft_cluster(km2, X)
    #println(km2)
 
    #println("\|y_pred - y_pred2\| = $(norm(y_pred-y_pred2))")
@@ -125,7 +125,7 @@ function run_census_kmeans()
    
    EMAccel.em!(km, X, print=true)
    km.trained = true
-   y_pred = EMAccel.soft_classify(km, X)
+   y_pred = EMAccel.soft_cluster(km, X)
    dist = cluster_dist(km, X, y_pred)
    println("Sum of intra-cluster distances = $(sum(dist))")
  
@@ -134,13 +134,13 @@ function run_census_kmeans()
    ##EMAccel.em!(km2, X, print=true, ll_tol=0.5)
    #EMAccel.gd!(km2, X, n_em_iter=0, print=true, n_iter=100)
    #km2.trained = true
-   #y_pred2 = EMAccel.soft_classify(km2, X)
+   #y_pred2 = EMAccel.soft_cluster(km2, X)
    #println()
 
    #EMAccel.em!(km3, X, print=true, ll_tol=0.5)
    EMAccel.nest2!(km3, X, n_em_iter=0, print=true, n_iter=100)
    km3.trained = true
-   y_pred3 = EMAccel.soft_classify(km3, X)
+   y_pred3 = EMAccel.soft_cluster(km3, X)
    dist = cluster_dist(km3, X, y_pred3)
    println("Sum of intra-cluster distances = $(sum(dist))")
  
@@ -164,7 +164,7 @@ function run_iris_kmeans()
    
    EMAccel.em!(km, X, print=true)
    km.trained = true
-   y_pred = EMAccel.soft_classify(km, X)
+   y_pred = EMAccel.soft_cluster(km, X)
    dist = cluster_dist(km, X, y_pred)
    println("Sum of intra-cluster distances = $(sum(dist))")
    println()
@@ -172,13 +172,13 @@ function run_iris_kmeans()
    ##EMAccel.em!(km2, X, print=true, ll_tol=0.5)
    #EMAccel.gd!(km2, X, n_em_iter=0, print=true, n_iter=100)
    #km2.trained = true
-   #y_pred2 = EMAccel.soft_classify(km2, X)
+   #y_pred2 = EMAccel.soft_cluster(km2, X)
    #println()
 
    #EMAccel.em!(km3, X, print=true, ll_tol=0.5)
    EMAccel.nest2!(km3, X, n_em_iter=0, print=true, n_iter=100)
    km3.trained = true
-   y_pred3 = EMAccel.soft_classify(km3, X)
+   y_pred3 = EMAccel.soft_cluster(km3, X)
    dist = cluster_dist(km3, X, y_pred3)
    println("Sum of intra-cluster distances = $(sum(dist))")
  
@@ -201,7 +201,7 @@ function run_libras_kmeans()
    
    EMAccel.em!(km, X, print=true, n_iter=100)
    km.trained = true
-   y_pred = EMAccel.soft_classify(km, X)
+   y_pred = EMAccel.soft_cluster(km, X)
    dist = cluster_dist(km, X, y_pred)
    println("Sum of intra-cluster distances = $(sum(dist))")
    println()
@@ -209,13 +209,13 @@ function run_libras_kmeans()
    ##EMAccel.em!(km2, X, print=true, ll_tol=0.5)
    #EMAccel.gd!(km2, X, n_em_iter=0, print=true, n_iter=100)
    #km2.trained = true
-   #y_pred2 = EMAccel.soft_classify(km2, X)
+   #y_pred2 = EMAccel.soft_cluster(km2, X)
    #println()
 
    #EMAccel.em!(km3, X, print=true, ll_tol=0.5)
    EMAccel.nest2!(km3, X, n_em_iter=0, print=true, n_iter=100)
    km3.trained = true
-   y_pred3 = EMAccel.soft_classify(km3, X)
+   y_pred3 = EMAccel.soft_cluster(km3, X)
    dist = cluster_dist(km3, X, y_pred3)
    println("Sum of intra-cluster distances = $(sum(dist))")
  
@@ -238,7 +238,7 @@ function run_cmc_kmeans()
    
    EMAccel.em!(km, X, print=true)
    km.trained = true
-   y_pred = EMAccel.soft_classify(km, X)
+   y_pred = EMAccel.soft_cluster(km, X)
    dist = cluster_dist(km, X, y_pred)
    println("Sum of intra-cluster distances = $(sum(dist))")
    println()
@@ -246,13 +246,13 @@ function run_cmc_kmeans()
    ##EMAccel.em!(km2, X, print=true, ll_tol=0.5)
    #EMAccel.gd!(km2, X, n_em_iter=0, print=true, n_iter=100)
    #km2.trained = true
-   #y_pred2 = EMAccel.soft_classify(km2, X)
+   #y_pred2 = EMAccel.soft_cluster(km2, X)
    #println()
 
    #EMAccel.em!(km3, X, print=true, ll_tol=0.5)
    EMAccel.nest2!(km3, X, n_em_iter=0, print=true, n_iter=100)
    km3.trained = true
-   y_pred3 = EMAccel.soft_classify(km3, X)
+   y_pred3 = EMAccel.soft_cluster(km3, X)
    dist = cluster_dist(km3, X, y_pred3)
    println("Sum of intra-cluster distances = $(sum(dist))")
  
