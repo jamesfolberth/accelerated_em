@@ -41,13 +41,13 @@ function gd!{T,CM<:CovMat}(
       if it == 1
          ll, gmm, bt_step = bt_ls_step(gmm, X)
       else
-         ll, gmm, bt_step = bt_ls_step(gmm, X, alpha=bt_step)
+         #ll, gmm, bt_step = bt_ls_step(gmm, X, alpha=bt_step)
          # hacky way to attempt to grow step size
-         #ll, gmm, bt_step = bt_ls_step(gmm, X, alpha=2.0*bt_step)
+         ll, gmm, bt_step = bt_ls_step(gmm, X, alpha=2.0*bt_step)
       end
 
       if print
-         println("gd!: log-likelihood = $(ll)")
+         println("gdR!: log-likelihood = $(ll)")
          #TODO print convergence rates
       end
      

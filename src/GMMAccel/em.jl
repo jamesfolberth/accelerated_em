@@ -258,7 +258,7 @@ function compute_ll_R{T,CM<:FullCovMat}(
    
    # this is similar to E step
    #cov_logdet = map(cm->logdet(cm.chol), gmm.covs) # logdet(Sigma)
-   cov_logdet = map(cm->2*logdet(cm.R), gmm.covs) # logdet(Sigma)
+   cov_logdet = map(cm->log(det(cm.R)^2), gmm.covs) # logdet(Sigma)
 
    wrk = Array{T}(n_dim, n_ex) # used for storing (X-mean)
    resp = Array{T}(n_ex, n_clust)    # responsibility of component j for example i

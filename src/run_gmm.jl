@@ -1,7 +1,8 @@
 #XXX
 #srand(2718218)
 seed = rand(1:99999999)
-seed = 74779269 # em uses ~20 iters
+#seed = 74779269 # em uses ~20 iters
+seed = 25869979 # gd takes a while.  Iterates are the same with chol updates!
 println("seed = $(seed)")
 srand(seed)
 
