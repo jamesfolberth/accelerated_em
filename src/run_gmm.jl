@@ -6,7 +6,10 @@ seed = 25869979 # gd takes a while.  Iterates are the same with chol updates!
 println("seed = $(seed)")
 srand(seed)
 
-
+#XXX It can be shown that doing an update with a Cholesky factorization,
+#    updating the covariance, and then recomputing the Cholesky factor
+#    is equivalent to using a general factorization Sigma = S'*S, where
+#    S is not necessarily the Cholesky factor (or even triangular).
 
 using PyPlot
 
