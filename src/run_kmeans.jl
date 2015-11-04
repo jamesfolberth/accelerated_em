@@ -13,8 +13,9 @@ using PyPlot
 
 #using EMAccel
 reload("EMAccel")
-import EMAccel
-import MiscData
+#import EMAccel
+#import MiscData
+reload("MiscData")
 
 include("utils.jl")
 
@@ -264,11 +265,12 @@ end
 #TODO Wisconsin breast cancer dataset
 
 # KMeans
-#run_kmeans_nd()
+run_kmeans_nd()
 
 # real data
 #run_census_kmeans()
-run_iris_kmeans()
+#run_iris_kmeans()
 #run_libras_kmeans()
 #run_cmc_kmeans()
+
 

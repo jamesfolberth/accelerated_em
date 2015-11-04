@@ -11,8 +11,9 @@ srand(seed)
 using PyPlot 
 
 reload("EMAccel")
-import EMAccel
-import MiscData
+#import EMAccel
+reload("MiscData")
+#import MiscData
 
 include("utils.jl")
 
@@ -43,6 +44,7 @@ function perf_prof_skeleton{T<:Real}(
 end
 
 
+# Real data
 # performance profile based on number of iterations (because it's easy)
 function iter_perf_prof()
 # {{{
@@ -131,7 +133,6 @@ function time_perf_prof()
 end
 # }}}
 
-
 # performance profile based on negative log-likelihood
 function nll_perf_prof()
 # {{{
@@ -215,10 +216,151 @@ end
 # }}}
 
 
+# Manufactured data
+# performance profile based on number of iterations (because it's easy)
+function dist_nd_iter_perf_prof(dist_nd_args...; dist_nd_kwargs...)
+# {{{
 
-# run stuff
+   n_samples = 30
+   solvers = (EMAccel.hard_em!, EMAccel.em!, EMAccel.gd!, EMAccel.nest2!)
+
+   perf_data = zeros(n_samples, length(solvers))
+   
+   # do a bunch of solves
+   for ns in 1:n_samples
+      println("sample $(ns) of $(n_samples)")
+      X,y = MiscData.RandCluster.dist_nd(dist_nd_args...; dist_nd_kwargs...)
+      k = length(unique(y))
+  
+      km = EMAccel.KMeans(X; K=k, mean_init_method=:kmpp)
+
+      for (s,solver) in enumerate(solvers)
+         km_copy = deepcopy(km)
+         n_iter = solver(km_copy, X, n_iter=250)
+
+         perf_data[ns,s] += n_iter
+      end
+   end 
+
+   # build a performance profile plot
+   perf_prof_skeleton(perf_data, collect(linspace(1,5)))
+   axis([0.9, 5.1, -0.1, 1.1])
+   
+   legend(["hard_em!", "em!", "gd!", "nest2!"], loc="lower right")
+   title("Performance profile: number of iterations")
+
+   return
+end
+# }}}
+
+# performance profile based on runtime
+function dist_nd_time_perf_prof(dist_nd_args...; dist_nd_kwargs...)
+# {{{
+
+   n_samples = 30
+   solvers = (EMAccel.hard_em!, EMAccel.em!, EMAccel.gd!, EMAccel.nest2!)
+
+   perf_data = zeros(n_samples, length(solvers))
+
+   X,y = MiscData.RandCluster.dist_nd(dist_nd_args...; dist_nd_kwargs...)
+   k = length(unique(y))
+   km = EMAccel.KMeans(X; K=k, mean_init_method=:kmpp)
+   for (s,solver) in enumerate(solvers)
+      km_copy = deepcopy(km)
+      solver(km_copy, X)
+   end
+
+   # do a bunch of solves
+   for ns in 1:n_samples
+      println("sample $(ns) of $(n_samples)")
+      X,y = MiscData.RandCluster.dist_nd(dist_nd_args...; dist_nd_kwargs...)
+      k = length(unique(y))
+  
+      km = EMAccel.KMeans(X; K=k, mean_init_method=:kmpp)
+
+      for (s,solver) in enumerate(solvers)
+         km_copy = deepcopy(km)
+         t = @elapsed solver(km_copy, X, n_iter=250)
+
+         perf_data[ns,s] += t
+      end
+   end 
+
+   # build a performance profile plot
+   perf_prof_skeleton(perf_data, collect(linspace(1,10)))
+   axis([0.9, 10.1, -0.1, 1.1])
+   
+   legend(["hard_em!", "em!", "gd!", "nest2!"], loc="lower right")
+   title("Performance profile: runtime")
+
+   return
+end
+# }}}
+
+# performance profile based on negative log-likelihood
+function dist_nd_nll_perf_prof(dist_nd_args...; dist_nd_kwargs...)
+# {{{
+
+   n_samples = 30
+   solvers = (EMAccel.hard_em!, EMAccel.em!, EMAccel.gd!, EMAccel.nest2!)
+
+   perf_data = zeros(n_samples, length(solvers))
+   
+   # do a bunch of solves
+   for ns in 1:n_samples
+      println("sample $(ns) of $(n_samples)")
+      X,y = MiscData.RandCluster.dist_nd(dist_nd_args...; dist_nd_kwargs...)
+      k = length(unique(y))
+  
+      km = EMAccel.KMeans(X; K=k, mean_init_method=:kmpp)
+
+      for (s,solver) in enumerate(solvers)
+         km_copy = deepcopy(km)
+         solver(km_copy, X, n_iter=250)
+         ll = EMAccel.compute_ll(km_copy, X)
+
+         perf_data[ns,s] -= ll
+      end
+   end 
+
+   # build a performance profile plot
+   perf_prof_skeleton(perf_data, collect(linspace(1,1.5)))
+   axis([0.9, 1.6, -0.1, 1.1])
+   
+   legend(["hard_em!", "em!", "gd!", "nest2!"], loc="lower right")
+   title("Performance profile: negative log-likelihood")
+
+   return
+end
+# }}}
+
+
+
+# real data
 #iter_perf_prof()
 #time_perf_prof()
-nll_perf_prof()
+#nll_perf_prof()
 #dist_perf_prof()
+
+
+# made up data
+#f = dist_nd_iter_perf_prof
+f = dist_nd_time_perf_prof
+#f = dist_nd_nll_perf_prof
+
+# nest2! wins (by a bit) in iter and time for this severely unbalanced dataset.
+#f(10,2,1000,cov_type=:wishart,mean_std=10,noise_std=5,weights=[.99 .01])
+#f(30,2,5000,cov_type=:wishart,mean_std=10,noise_std=5,weights=[.99 .01])
+
+# nest2! wins (by a bit) in iter and time for this severely unbalanced dataset.
+# "n=30_K=4_N=3000_unbalanced.pdf" nest2 wins bit a bit more
+# "n=30_K=4_N=3000_unbalanced_iter.pdf" nest2 wins bit a bit more
+#f(30,4,3000,cov_type=:spherical,mean_std=10,noise_std=5,weights=[.7 .1 .1 .1])
+#f(3,4,300,cov_type=:spherical,mean_std=10,noise_std=5,weights=[.7 .1 .1 .1])
+
+# "n=100_K=4_N=10000_unbalanced.pdf" nest2 wins bit a bit more
+#f(100,4,10000,cov_type=:wishart,mean_std=10,noise_std=5,weights=[.97 .01 .01 .01])
+
+# "n=3_K=40_N=3000_iter.pdf" nest2 wins by a bit
+f(3,40,3000,cov_type=:spherical,mean_std=10,noise_std=5)
 
