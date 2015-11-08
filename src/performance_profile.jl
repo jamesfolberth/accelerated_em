@@ -68,7 +68,7 @@ function iter_perf_prof()
             km_copy = deepcopy(km)
             n_iter = solver(km_copy, X, n_iter=100)
 
-            perf_data[p,s] += n_iter
+            perf_data[p,s] += n_iter/n_samples
          end
       end
    end 
@@ -83,7 +83,6 @@ function iter_perf_prof()
    return
 end
 # }}}
-
 
 # performance profile based on runtime
 function time_perf_prof()
@@ -117,7 +116,7 @@ function time_perf_prof()
             km_copy = deepcopy(km)
             t = @elapsed solver(km_copy, X, n_iter=100)
    
-            perf_data[p,s] += t
+            perf_data[p,s] += t/n_samples
          end
       end
    end 
@@ -157,7 +156,7 @@ function nll_perf_prof()
             solver(km_copy, X, n_iter=100)
             ll = EMAccel.compute_ll(km_copy, X)
 
-            perf_data[p,s] -= ll
+            perf_data[p,s] -= ll/n_samples
          end
       end
    end 
@@ -199,10 +198,12 @@ function dist_perf_prof()
             y_pred = clusters[s](km_copy, X)
             dist = cluster_dist(km_copy, X, y_pred)
 
-            perf_data[p,s] += sum(dist)
+            perf_data[p,s] += sum(dist)/n_samples
          end
       end
    end 
+   
+   println(perf_data)
 
    # build a performance profile plot
    perf_prof_skeleton(perf_data, collect(linspace(1,2.5)))
@@ -214,6 +215,54 @@ function dist_perf_prof()
    return
 end
 # }}}
+
+# performance profile based on silhoette score
+function ss_perf_prof()
+# {{{
+
+   n_samples = 10
+   MDlist = (MiscData.Iris, MiscData.LIBRAS, MiscData.CMC)
+   #MDlist = (MiscData.LIBRAS,)
+   solvers = (EMAccel.hard_em!, EMAccel.em!, EMAccel.gd!, EMAccel.nest2!)
+   clusters = (EMAccel.hard_cluster, EMAccel.soft_cluster, EMAccel.soft_cluster, EMAccel.soft_cluster)
+
+   perf_data = zeros(length(MDlist), length(solvers))
+
+   # do a bunch of solves
+   for ns in 1:n_samples
+      println("sample $(ns) of $(n_samples)")
+      for (p,MDsub) in enumerate(MDlist)
+         X,y = MDsub.read_array()
+         k = length(unique(y))
+  
+         km = EMAccel.KMeans(X; K=k, mean_init_method=:kmpp)
+
+         for (s,solver) in enumerate(solvers)
+            km_copy = deepcopy(km)
+            solver(km_copy, X, n_iter=100)
+            y_pred = clusters[s](km_copy, X)
+            ss = silhoette_score(X, y_pred)
+            
+            perf_data[p,s] -= ss/n_samples
+         end
+      end
+   end 
+   
+   #XXX: there's some renormalization going on here.  Most scores are _very_ similar.
+   warn("Doing some weird normalization thing.  \"Sensitivity\" of performance profile is way higher than it should be.")
+   broadcast!(-, perf_data, perf_data, minimum(perf_data,2)-1)
+
+   # build a performance profile plot
+   perf_prof_skeleton(perf_data, collect(linspace(1,2)))
+   axis([0.9, 2., -0.1, 1.1])
+   
+   legend(["hard_em!", "em!", "gd!", "nest2!"], loc="lower right")
+   title("(Normalized) performance profile: silhoette score")
+
+   return
+end
+# }}}
+
 
 
 # Manufactured data
@@ -341,6 +390,7 @@ end
 #time_perf_prof()
 #nll_perf_prof()
 #dist_perf_prof()
+ss_perf_prof()
 
 
 # made up data
@@ -362,5 +412,5 @@ f = dist_nd_time_perf_prof
 #f(100,4,10000,cov_type=:wishart,mean_std=10,noise_std=5,weights=[.97 .01 .01 .01])
 
 # "n=3_K=40_N=3000_iter.pdf" nest2 wins by a bit
-f(3,40,3000,cov_type=:spherical,mean_std=10,noise_std=5)
+#f(3,40,3000,cov_type=:spherical,mean_std=10,noise_std=5)
 

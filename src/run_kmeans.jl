@@ -23,11 +23,11 @@ include("utils.jl")
 # {{{
 function run_kmeans_nd()
 
-   n = 2
+   n = 3
    k = 4
-   N = 50000
+   N = 5000
    X, y = MiscData.RandCluster.dist_nd(n, k, N, T=Float64)
-   m,s = standard_scaler!(X)
+   m = standard_scaler!(X, variance=false)
   
    if n == 2
       figure(1)
@@ -56,6 +56,7 @@ function run_kmeans_nd()
    y_pred = EMAccel.soft_cluster(km, X)
    dist = cluster_dist(km, X, y_pred)
    println("Sum of intra-cluster distances = $(sum(dist))")
+   #println("Mean silhoette coefficient = $(silhoette_score(X, y_pred))")
    println()
    
    ##em!(km2, X, print=true, ll_tol=0.5)
@@ -70,6 +71,7 @@ function run_kmeans_nd()
    y_pred3 = EMAccel.soft_cluster(km3, X)
    dist = cluster_dist(km, X, y_pred3)
    println("Sum of intra-cluster distances = $(sum(dist))")
+   #println("Mean silhoette coefficient = $(silhoette_score(X, y_pred3))")
  
    #EMAccel.em!(km, X, print=true)
    #km.trained = true
@@ -117,7 +119,7 @@ function run_census_kmeans()
    N = 50000
    k = 12
    X = MiscData.Census1990.read_array(nrows=N)
-   m,s = standard_scaler!(X)
+   m = standard_scaler!(X, variance=false)
    println("Census1990 (subsample) data loaded.")
   
    km = EMAccel.KMeans(X; K=k, mean_init_method=:kmpp)
@@ -129,7 +131,6 @@ function run_census_kmeans()
    y_pred = EMAccel.soft_cluster(km, X)
    dist = cluster_dist(km, X, y_pred)
    println("Sum of intra-cluster distances = $(sum(dist))")
- 
    println()
    
    ##EMAccel.em!(km2, X, print=true, ll_tol=0.5)
@@ -157,7 +158,7 @@ function run_iris_kmeans()
    k = length(unique(y)) # k=3
    #k = 6
  
-   m,s = standard_scaler!(X)
+   m = standard_scaler!(X, variance=false)
    
    km = EMAccel.KMeans(X; K=k, mean_init_method=:kmpp)
    km2 = deepcopy(km)
@@ -168,6 +169,7 @@ function run_iris_kmeans()
    y_pred = EMAccel.soft_cluster(km, X)
    dist = cluster_dist(km, X, y_pred)
    println("Sum of intra-cluster distances = $(sum(dist))")
+   println("Mean silhoette coefficient = $(silhoette_score(X, y_pred))")
    println()
    
    ##EMAccel.em!(km2, X, print=true, ll_tol=0.5)
@@ -182,6 +184,18 @@ function run_iris_kmeans()
    y_pred3 = EMAccel.soft_cluster(km3, X)
    dist = cluster_dist(km3, X, y_pred3)
    println("Sum of intra-cluster distances = $(sum(dist))")
+   println("Mean silhoette coefficient = $(silhoette_score(X, y_pred3))")
+   
+   #plot_inds = (1,2,3)
+   #figure("1")
+   #clf()
+   #scatter3D(X[:,plot_inds[1]], X[:,plot_inds[2]], X[:,plot_inds[3]], c=y_pred)
+   #title("em!")
+
+   #figure("2")
+   #clf()
+   #scatter3D(X[:,plot_inds[1]], X[:,plot_inds[2]], X[:,plot_inds[3]], c=y_pred3)
+   #title("nest2!")
  
    return
 end
@@ -194,7 +208,7 @@ function run_libras_kmeans()
    X, y = MiscData.LIBRAS.read_array()
    k = length(unique(y)) # k=15
   
-   m,s = standard_scaler!(X)
+   m = standard_scaler!(X, variance=false)
    
    km = EMAccel.KMeans(X; K=k, mean_init_method=:kmpp)
    km2 = deepcopy(km)
@@ -205,6 +219,7 @@ function run_libras_kmeans()
    y_pred = EMAccel.soft_cluster(km, X)
    dist = cluster_dist(km, X, y_pred)
    println("Sum of intra-cluster distances = $(sum(dist))")
+   println("Mean silhoette coefficient = $(silhoette_score(X, y_pred))")
    println()
    
    ##EMAccel.em!(km2, X, print=true, ll_tol=0.5)
@@ -219,6 +234,18 @@ function run_libras_kmeans()
    y_pred3 = EMAccel.soft_cluster(km3, X)
    dist = cluster_dist(km3, X, y_pred3)
    println("Sum of intra-cluster distances = $(sum(dist))")
+   println("Mean silhoette coefficient = $(silhoette_score(X, y_pred3))")
+
+   #plot_inds = (10,25)
+   #figure("1")
+   #clf()
+   #scatter(X[:,plot_inds[1]], X[:,plot_inds[2]], c=y_pred)
+   #title("em!")
+
+   #figure("2")
+   #clf()
+   #scatter(X[:,plot_inds[1]], X[:,plot_inds[2]], c=y_pred3)
+   #title("nest2!")
  
    return
 end
@@ -231,7 +258,7 @@ function run_cmc_kmeans()
    X, y = MiscData.CMC.read_array()
    k = length(unique(y)) # k=3
    
-   m,s = standard_scaler!(X)
+   m = standard_scaler!(X, variance=false)
 
    km = EMAccel.KMeans(X; K=k, mean_init_method=:kmpp)
    km2 = deepcopy(km)
@@ -242,6 +269,7 @@ function run_cmc_kmeans()
    y_pred = EMAccel.soft_cluster(km, X)
    dist = cluster_dist(km, X, y_pred)
    println("Sum of intra-cluster distances = $(sum(dist))")
+   println("Mean silhoette coefficient = $(silhoette_score(X, y_pred))")
    println()
    
    ##EMAccel.em!(km2, X, print=true, ll_tol=0.5)
@@ -256,6 +284,7 @@ function run_cmc_kmeans()
    y_pred3 = EMAccel.soft_cluster(km3, X)
    dist = cluster_dist(km3, X, y_pred3)
    println("Sum of intra-cluster distances = $(sum(dist))")
+   println("Mean silhoette coefficient = $(silhoette_score(X, y_pred3))")
  
    return
 end
@@ -265,11 +294,11 @@ end
 #TODO Wisconsin breast cancer dataset
 
 # KMeans
-run_kmeans_nd()
+#run_kmeans_nd()
 
 # real data
 #run_census_kmeans()
-#run_iris_kmeans()
+run_iris_kmeans()
 #run_libras_kmeans()
 #run_cmc_kmeans()
 
